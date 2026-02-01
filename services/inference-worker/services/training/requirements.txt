@@ -1,0 +1,65 @@
+# =============================================================================
+# Training Service Dependencies
+# Optimized for fast builds - NO PyTorch/Transformers bloat
+# Last updated: 2026-01-26
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Document Processing
+# Using specific extras instead of [all-docs] to avoid PyTorch (~2GB) bloat
+# Supports: PDF, Word, PowerPoint, Excel, HTML, Markdown, Images
+# -----------------------------------------------------------------------------
+unstructured[pdf,docx,pptx,xlsx,html,md,image]>=0.16.0,<0.17.0
+beautifulsoup4>=4.12.0
+pillow>=11.0.0
+chardet>=5.2.0
+pypdf>=6.1.0
+python-docx>=1.2.0
+
+# -----------------------------------------------------------------------------
+# Google Services Integration
+# -----------------------------------------------------------------------------
+google-auth-oauthlib>=1.2.0
+google-auth-httplib2>=0.2.0
+google-api-python-client>=2.150.0
+
+# -----------------------------------------------------------------------------
+# Database Connectors (for metadata scanning)
+# All are conditionally imported - graceful degradation if not installed
+# Using flexible ranges to avoid conflicts
+# -----------------------------------------------------------------------------
+
+# Databricks
+databricks-sql-connector>=3.0.0
+databricks-sqlalchemy>=2.0.0
+
+# Snowflake
+snowflake-connector-python>=3.10.0
+snowflake-sqlalchemy>=1.6.0
+
+# Oracle (oracledb is the modern driver - cx_Oracle is deprecated)
+oracledb>=2.0.0
+
+# BigQuery
+google-cloud-bigquery>=3.20.0
+
+# PostgreSQL (for Redshift)
+psycopg2-binary>=2.9.0
+
+# -----------------------------------------------------------------------------
+# Azure Services Integration (conditional imports)
+# -----------------------------------------------------------------------------
+azure-identity>=1.15.0
+azure-storage-blob>=12.20.0
+azure-mgmt-datafactory>=9.0.0
+
+# -----------------------------------------------------------------------------
+# Database Schema Visualization
+# -----------------------------------------------------------------------------
+eralchemy>=1.5.0
+graphviz>=0.20.0
+
+# -----------------------------------------------------------------------------
+# Include common dependencies from parent
+# -----------------------------------------------------------------------------
+-r ../requirements.txt

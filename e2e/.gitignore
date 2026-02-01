@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env.local
+.env
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+reports/playwright-report/
+reports/results.json
+
+# Auth storage (contains session tokens)
+storage/auth.json
+
+# Build output
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*

@@ -1,0 +1,79 @@
+graph TB
+    %% Main components
+    User[User] --> UI[Streamlit UI]
+    UI --> Workflow[Exploratory_Data_Workflow]
+    
+    %% Main phases
+    Workflow --> Analysis[Analysis Phase]
+    Analysis --> Recommendation[Recommendation Phase]
+    Recommendation --> Results[Final Results]
+    Results --> UI
+    
+    %% Analysis components
+    Analysis --> TE[Task Expert]
+    TE --> HA[Hint Agent]
+    HA --> AP[Analysis Planner]
+    AP --> AE[Analysis Executor]
+    AE --> AR[Analysis Replanner]
+    AR -->|Continue| AE
+    AR -->|Complete| AS[Analysis Synthesizer]
+    
+    %% Recommendation components
+    Recommendation --> RP[Recommendation Planner]
+    RP --> RE[Recommendation Executor]
+    RE --> RR[Recommendation Replanner]
+    RR -->|Continue| RE
+    RR -->|Complete| RS[Recommendation Synthesizer]
+    RS --> RF[Recommendation Finalizer]
+    
+    %% External systems
+    AE --> Tools[Tool Execution]
+    RE --> Tools
+    HA --> Runbooks[Runbooks]
+    Tools --> GraphRAG[Knowledge Graph]
+    Tools --> ExternalAPIs[External APIs]
+    Tools --> DataAnalysis[Data Analysis]
+    
+    %% Callbacks
+    Workflow --> Callbacks[Callback Handlers]
+    Callbacks --> StreamlitHandler[Streamlit Display]
+    Callbacks --> FileLogger[File Logging]
+    
+    %% LLMs
+    TE --> LLM_Mini[LLM Mini]
+    AP --> Reasoning_LLM[Reasoning LLM]
+    AE --> Primary_LLM[Primary LLM]
+    AS --> Reasoning_LLM
+    RP --> Reasoning_LLM
+    RE --> Primary_LLM
+    RS --> Reasoning_LLM
+    RF --> Reasoning_LLM
+    
+    %% State management
+    AP --> State[Exploration State]
+    AE --> State
+    AR --> State
+    AS --> State
+    RP --> State
+    RE --> State
+    RR --> State
+    RS --> State
+    RF --> State
+    
+    classDef user fill:#e7f, stroke:#333, stroke-width:1px;
+    classDef ui fill:#7ef, stroke:#333, stroke-width:1px;
+    classDef workflow fill:#f9a, stroke:#333, stroke-width:2px;
+    classDef phase fill:#bbf, stroke:#333, stroke-width:2px;
+    classDef component fill:#fdb, stroke:#333, stroke-width:1px;
+    classDef external fill:#bfb, stroke:#333, stroke-width:1px;
+    classDef model fill:#d9d, stroke:#333, stroke-width:1px;
+    classDef state fill:#acf, stroke:#333, stroke-width:1px;
+    
+    class User user;
+    class UI ui;
+    class Workflow,Results workflow;
+    class Analysis,Recommendation phase;
+    class TE,HA,AP,AE,AR,AS,RP,RE,RR,RS,RF,Callbacks,StreamlitHandler,FileLogger component;
+    class Tools,Runbooks,GraphRAG,ExternalAPIs,DataAnalysis external;
+    class LLM_Mini,Reasoning_LLM,Primary_LLM model;
+    class State state;

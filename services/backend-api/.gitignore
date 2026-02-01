@@ -1,0 +1,25 @@
+.env
+.idea/backend-api.iml
+.idea/inspectionProfiles/profiles_settings.xml
+.idea/misc.xml
+.idea/modules.xml
+.idea/vcs.xml
+__pycache__
+# Default ignored files
+/shelf/
+/workspace.xml
+# Editor-based HTTP Client requests
+/httpRequests/
+# Datasource local storage ignored files
+/dataSources/
+/dataSources.local.xml
+.idea/workspace.xml
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env
+# SSL certificates
+*.pem
+*.pem.*

@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Model Evaluation - Workflow</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            line-height: 1.6;
+        }
+
+        /* Top Navigation */
+        .top-nav {
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 0 2rem;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+        }
+
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .back-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: #f1f5f9;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #475569;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            background: #e2e8f0;
+        }
+
+        .evaluation-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            background: #3b82f6;
+            color: white;
+        }
+
+        /* Step Indicator */
+        .step-indicator {
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 1rem 2rem;
+            margin-top: 64px;
+        }
+
+        .steps {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex: 1;
+            position: relative;
+        }
+
+        .step::after {
+            content: '';
+            position: absolute;
+            right: -1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid #cbd5e1;
+            border-top: 8px solid transparent;
+            border-bottom: 8px solid transparent;
+        }
+
+        .step:last-child::after {
+            display: none;
+        }
+
+        .step-number {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+            background: #e2e8f0;
+            color: #64748b;
+        }
+
+        .step.completed .step-number {
+            background: #10b981;
+            color: white;
+        }
+
+        .step.active .step-number {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .step-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #64748b;
+        }
+
+        .step.completed .step-label,
+        .step.active .step-label {
+            color: #0f172a;
+        }
+
+        /* Main Content */
+        .main-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .step-content {
+            display: none;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+            overflow: hidden;
+        }
+
+        .step-content.active {
+            display: block;
+        }
+
+        .step-header {
+            padding: 2rem 2rem 1rem;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .step-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 0.5rem;
+        }
+
+        .step-description {
+            color: #64748b;
+            font-size: 16px;
+        }
+
+        .step-body {
+            padding: 2rem;
+        }
+
+        /* Setup Step */
+        .form-group {
+            margin-bottom: 2rem;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #374151;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgb(59 130 246 / 0.1);
+        }
+
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .template-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .template-card {
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .template-card:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        .template-card.selected {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+
+        .template-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1rem;
+            font-size: 24px;
+        }
+
+        .performance .template-icon { background: #fef3c7; }
+        .accuracy .template-icon { background: #dcfce7; }
+        .safety .template-icon { background: #fee2e2; }
+        .custom .template-icon { background: #e0e7ff; }
+
+        /* Test Cases Step */
+        .upload-zone {
+            border: 2px dashed #d1d5db;
+            border-radius: 8px;
+            padding: 3rem;
+            text-align: center;
+            background: #f9fafb;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .upload-zone:hover {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+
+        .upload-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 1rem;
+            background: #e5e7eb;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #6b7280;
+        }
+
+        .test-case-builder {
+            margin-top: 2rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .builder-header {
+            background: #f9fafb;
+            padding: 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            font-weight: 600;
+        }
+
+        .builder-form {
+            padding: 1.5rem;
+            display: grid;
+            grid-template-columns: 2fr 2fr 1fr auto;
+            gap: 1rem;
+            align-items: end;
+        }
+
+        .progress-indicator {
+            background: #f1f5f9;
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 2rem;
+        }
+
+        .progress-text {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #10b981;
+            width: 75%;
+            transition: width 0.3s ease;
+        }
+
+        /* Run Step */
+        .pre-flight {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .checklist {
+            list-style: none;
+        }
+
+        .checklist li {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .check-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #10b981;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .run-button {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin: 0 auto;
+        }
+
+        .run-button:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        .progress-section {
+            margin-top: 2rem;
+            padding: 2rem;
+            background: #f8fafc;
+            border-radius: 8px;
+        }
+
+        .live-progress {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .progress-circle {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 1rem;
+            position: relative;
+        }
+
+        .circle-bg {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: conic-gradient(#3b82f6 67%, #e5e7eb 67%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .circle-inner {
+            width: 90px;
+            height: 90px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 700;
+            color: #3b82f6;
+        }
+
+        .log-viewer {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            height: 200px;
+            overflow-y: auto;
+        }
+
+        /* Results Step */
+        .results-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-value.success { color: #10b981; }
+        .metric-value.warning { color: #f59e0b; }
+        .metric-value.error { color: #ef4444; }
+
+        .metric-label {
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .results-table th,
+        .results-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .results-table th {
+            background: #f9fafb;
+            font-weight: 600;
+        }
+
+        .status-pill {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-pill.pass {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-pill.fail {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Navigation Buttons */
+        .step-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 2rem;
+            border-top: 1px solid #f1f5f9;
+            background: #f9fafb;
+        }
+
+        .nav-btn {
+            padding: 0.75rem 1.5rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background: white;
+            color: #374151;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            background: #f9fafb;
+        }
+
+        .nav-btn.primary {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+
+        .nav-btn.primary:hover {
+            background: #2563eb;
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Quick Jump Menu */
+        .quick-jump {
+            position: relative;
+        }
+
+        .quick-jump-btn {
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Animations */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .step-content.active {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .top-nav {
+                padding: 0 1rem;
+            }
+
+            .steps {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .step::after {
+                display: none;
+            }
+
+            .main-content {
+                padding: 1rem;
+            }
+
+            .step-body {
+                padding: 1rem;
+            }
+
+            .results-summary {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+        <div class="nav-left">
+            <button class="back-btn">
+                ← Back to Evaluations
+            </button>
+            <h1 class="evaluation-title">Customer Support Accuracy Test</h1>
+        </div>
+        <div class="status-badge">Running</div>
+    </nav>
+
+    <!-- Step Indicator -->
+    <div class="step-indicator">
+        <div class="steps">
+            <div class="step completed">
+                <div class="step-number">✓</div>
+                <div class="step-label">Setup</div>
+            </div>
+            <div class="step completed">
+                <div class="step-number">✓</div>
+                <div class="step-label">Test Cases</div>
+            </div>
+            <div class="step active">
+                <div class="step-number">3</div>
+                <div class="step-label">Run</div>
+            </div>
+            <div class="step">
+                <div class="step-number">4</div>
+                <div class="step-label">Results</div>
+            </div>
+            <div class="step">
+                <div class="step-number">5</div>
+                <div class="step-label">Iterate</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Setup Step -->
+        <div class="step-content" id="step-1">
+            <div class="step-header">
+                <h2 class="step-title">Setup Your Evaluation</h2>
+                <p class="step-description">Configure the basic settings and criteria for your AI model evaluation.</p>
+            </div>
+            <div class="step-body">
+                <div class="form-group">
+                    <label class="form-label">Evaluation Name</label>
+                    <input type="text" class="form-input" placeholder="e.g., Customer Support Accuracy Test" value="Customer Support Accuracy Test">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-input form-textarea" placeholder="Describe what this evaluation will test...">Testing the accuracy and helpfulness of our customer support AI assistant responses across various common customer inquiries.</textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Evaluation Template</label>
+                    <div class="template-cards">
+                        <div class="template-card performance">
+                            <div class="template-icon">⚡</div>
+                            <h3>Performance</h3>
+                            <p>Test speed, latency, and throughput metrics</p>
+                        </div>
+                        <div class="template-card accuracy selected">
+                            <div class="template-icon">🎯</div>
+                            <h3>Accuracy</h3>
+                            <p>Measure correctness and relevance of responses</p>
+                        </div>
+                        <div class="template-card safety">
+                            <div class="template-icon">🛡️</div>
+                            <h3>Safety</h3>
+                            <p>Check for harmful or biased outputs</p>
+                        </div>
+                        <div class="template-card custom">
+                            <div class="template-icon">⚙️</div>
+                            <h3>Custom</h3>
+                            <p>Define your own evaluation criteria</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Success Criteria</label>
+                    <textarea class="form-input form-textarea" placeholder="Define what constitutes a successful result...">Responses should be accurate, helpful, and directly address the customer's question. Success rate target: 85% or higher.</textarea>
+                </div>
+            </div>
+            <div class="step-navigation">
+                <button class="nav-btn" disabled>Previous</button>
+                <button class="nav-btn primary" onclick="nextStep()">Save and Continue</button>
+            </div>
+        </div>
+
+        <!-- Test Cases Step -->
+        <div class="step-content" id="step-2">
+            <div class="step-header">
+                <h2 class="step-title">Prepare Test Cases</h2>
+                <p class="step-description">Upload or create test cases that will be used to evaluate your AI model.</p>
+            </div>
+            <div class="step-body">
+                <div class="progress-indicator">
+                    <div class="progress-text">15 of 20 test cases ready</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                </div>
+                
+                <div class="upload-zone">
+                    <div class="upload-icon">📁</div>
+                    <h3>Upload Test Cases</h3>
+                    <p>Drag and drop a CSV file or click to browse</p>
+                    <p style="font-size: 14px; color: #6b7280; margin-top: 0.5rem;">
+                        Expected format: input, expected_output, tags
+                    </p>
+                </div>
+                
+                <div style="text-align: center; margin: 2rem 0; color: #6b7280;">
+                    or
+                </div>
+                
+                <div class="test-case-builder">
+                    <div class="builder-header">Manual Test Case Builder</div>
+                    <div class="builder-form">
+                        <div>
+                            <label class="form-label">Input</label>
+                            <input type="text" class="form-input" placeholder="Customer question or prompt">
+                        </div>
+                        <div>
+                            <label class="form-label">Expected Output</label>
+                            <input type="text" class="form-input" placeholder="Expected AI response">
+                        </div>
+                        <div>
+                            <label class="form-label">Category</label>
+                            <select class="form-input">
+                                <option>Billing</option>
+                                <option>Technical</option>
+                                <option>General</option>
+                            </select>
+                        </div>
+                        <button class="nav-btn primary">Add</button>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 2rem;">
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th>Input</th>
+                                <th>Expected Output</th>
+                                <th>Category</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>How do I cancel my subscription?</td>
+                                <td>Guide to cancellation process with steps</td>
+                                <td>Billing</td>
+                                <td>
+                                    <button class="nav-btn" style="padding: 0.25rem 0.5rem; font-size: 12px;">Edit</button>
+                                    <button class="nav-btn" style="padding: 0.25rem 0.5rem; font-size: 12px; margin-left: 0.5rem;">Delete</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Why is my app crashing?</td>
+                                <td>Troubleshooting steps for app crashes</td>
+                                <td>Technical</td>
+                                <td>
+                                    <button class="nav-btn" style="padding: 0.25rem 0.5rem; font-size: 12px;">Edit</button>
+                                    <button class="nav-btn" style="padding: 0.25rem 0.5rem; font-size: 12px; margin-left: 0.5rem;">Delete</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>What are your business hours?</td>
+                                <td>Clear statement of support hours</td>
+                                <td>General</td>
+                                <td>
+                                    <button class="nav-btn" style="padding: 0.25rem 0.5rem; font-size: 12px;">Edit</button>
+                                    <button class="nav-btn" style="padding: 0.25rem 0.5rem; font-size: 12px; margin-left: 0.5rem;">Delete</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="step-navigation">
+                <button class="nav-btn" onclick="prevStep()">Previous</button>
+                <button class="nav-btn primary" onclick="nextStep()">Continue to Run</button>
+            </div>
+        </div>
+
+        <!-- Run Step -->
+        <div class="step-content active" id="step-3">
+            <div class="step-header">
+                <h2 class="step-title">Run Evaluation</h2>
+                <p class="step-description">Execute your evaluation and monitor progress in real-time.</p>
+            </div>
+            <div class="step-body">
+                <div class="pre-flight">
+                    <h3 style="margin-bottom: 1rem;">Pre-flight Checklist</h3>
+                    <ul class="checklist">
+                        <li><span class="check-icon">✓</span> Evaluation configured</li>
+                        <li><span class="check-icon">✓</span> 15 test cases loaded</li>
+                        <li><span class="check-icon">✓</span> AI model accessible</li>
+                        <li><span class="check-icon">✓</span> All requirements met</li>
+                    </ul>
+                </div>
+                
+                <div style="text-align: center; margin: 2rem 0;">
+                    <button class="run-button">
+                        ▶️ Start Evaluation
+                    </button>
+                </div>
+                
+                <div class="progress-section">
+                    <div class="live-progress">
+                        <div class="progress-circle">
+                            <div class="circle-bg">
+                                <div class="circle-inner">67%</div>
+                            </div>
+                        </div>
+                        <h3>Evaluation in Progress</h3>
+                        <p>10 of 15 test cases completed • ETA: 3 minutes</p>
+                        <div style="margin-top: 1rem;">
+                            <button class="nav-btn" style="margin-right: 0.5rem;">Pause</button>
+                            <button class="nav-btn">Cancel</button>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 2rem;">
+                        <h4 style="margin-bottom: 1rem;">Live Log</h4>
+                        <div class="log-viewer">
+                            <div>[2024-03-15 14:32:01] Starting evaluation run...</div>
+                            <div>[2024-03-15 14:32:02] Loading test cases (15 total)</div>
+                            <div>[2024-03-15 14:32:03] Connecting to AI model endpoint</div>
+                            <div>[2024-03-15 14:32:05] Test case 1/15: ✓ PASS - How do I cancel my subscription?</div>
+                            <div>[2024-03-15 14:32:07] Test case 2/15: ✓ PASS - Why is my app crashing?</div>
+                            <div>[2024-03-15 14:32:09] Test case 3/15: ✓ PASS - What are your business hours?</div>
+                            <div>[2024-03-15 14:32:11] Test case 4/15: ✗ FAIL - How do I get a refund?</div>
+                            <div>[2024-03-15 14:32:13] Test case 5/15: ✓ PASS - Is there a mobile app?</div>
+                            <div>[2024-03-15 14:32:15] Test case 6/15: ✓ PASS - How to reset password?</div>
+                            <div>[2024-03-15 14:32:17] Test case 7/15: ✓ PASS - What payment methods do you accept?</div>
+                            <div>[2024-03-15 14:32:19] Test case 8/15: ✓ PASS - How to update my profile?</div>
+                            <div>[2024-03-15 14:32:21] Test case 9/15: ✓ PASS - Where can I find my invoice?</div>
+                            <div>[2024-03-15 14:32:23] Test case 10/15: ✗ FAIL - How to delete my account?</div>
+                            <div>[2024-03-15 14:32:25] Processing test case 11/15...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="step-navigation">
+                <button class="nav-btn" onclick="prevStep()">Previous</button>
+                <button class="nav-btn primary" onclick="nextStep()">View Results</button>
+            </div>
+        </div>
+
+        <!-- Results Step -->
+        <div class="step-content" id="step-4">
+            <div class="step-header">
+                <h2 class="step-title">Evaluation Results</h2>
+                <p class="step-description">Review the performance of your AI model across all test cases.</p>
+            </div>
+            <div class="step-body">
+                <div class="results-summary">
+                    <div class="metric-card">
+                        <div class="metric-value success">87%</div>
+                        <div class="metric-label">Overall Score</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value success">13/15</div>
+                        <div class="metric-label">Tests Passed</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value error">2</div>
+                        <div class="metric-label">Failed Tests</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value">1.2s</div>
+                        <div class="metric-label">Avg Response Time</div>
+                    </div>
+                </div>
+                
+                <div style="margin: 2rem 0;">
+                    <h3 style="margin-bottom: 1rem;">Test Case Results</h3>
+                    <table class="results-table">
+                        <thead>
+                            <tr>
+                                <th>Test Case</th>
+                                <th>Status</th>
+                                <th>Score</th>
+                                <th>Response Time</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>How do I cancel my subscription?</td>
+                                <td><span class="status-pill pass">PASS</span></td>
+                                <td>92%</td>
+                                <td>1.1s</td>
+                                <td><button class="nav-btn" style="padding: 0.25rem 0.5rem; font-size: 12px;">View Details</button></td>
+                            </tr>
+                            <tr>
+                                <td>Why is my app crashing?</td>
+                                <td><span class="status-pill pass">PASS</span></td>
+                                <td>89%</td>
+                                <td>1.3s</td>
+                                <td><button class="nav-btn" style="padding: 0.25rem 0.5rem; font-size: 12px;">View Details</button></td>
+                            </tr>
+                            <tr>
+                                <td>What are your business hours?</td>
+                                <td><span class="status-pill pass">PASS</span></td>
+                                <td>95%</td>
+                                <td>0.8s</td>
+                                <td><button class="nav-btn" style="padding: 0.25rem 0.5rem; font-size: 12px;">View Details</button></td>
+                            </tr>
+                            <tr>
+                                <td>How do I get a refund?</td>
+                                <td><span class="status-pill fail">FAIL</span></td>
+                                <td>45%</td>
+                                <td>1.5s</td>
+                                <td><button class="nav-btn" style="padding: 0.25rem 0.5rem; font-size: 12px;">View Details</button></td>
+                            </tr>
+                            <tr>
+                                <td>How to delete my account?</td>
+                                <td><span class="status-pill fail">FAIL</span></td>
+                                <td>38%</td>
+                                <td>1.2s</td>
+                                <td><button class="nav-btn" style="padding: 0.25rem 0.5rem; font-size: 12px;">View Details</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div style="margin-top: 2rem;">
+                    <h3 style="margin-bottom: 1rem;">Export Results</h3>
+                    <div style="display: flex; gap: 1rem;">
+                        <button class="nav-btn">📄 Download PDF Report</button>
+                        <button class="nav-btn">📊 Export to CSV</button>
+                        <button class="nav-btn">📋 Copy JSON</button>
+                        <button class="nav-btn">🔗 Share Results</button>
+                    </div>
+                </div>
+            </div>
+            <div class="step-navigation">
+                <button class="nav-btn" onclick="prevStep()">Previous</button>
+                <button class="nav-btn primary" onclick="nextStep()">Iterate & Improve</button>
+            </div>
+        </div>
+
+        <!-- Iterate Step -->
+        <div class="step-content" id="step-5">
+            <div class="step-header">
+                <h2 class="step-title">Iterate & Improve</h2>
+                <p class="step-description">Analyze results and make improvements to your AI model or test cases.</p>
+            </div>
+            <div class="step-body">
+                <div style="background: #eff6ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem;">
+                    <h3 style="color: #1e40af; margin-bottom: 1rem;">💡 Improvement Suggestions</h3>
+                    <ul style="color: #1e40af; margin-left: 1.5rem;">
+                        <li>Failed tests indicate issues with refund and account deletion policies</li>
+                        <li>Consider adding more training data for policy-related questions</li>
+                        <li>Response time is good but could be optimized for complex queries</li>
+                    </ul>
+                </div>
+                
+                <div style="margin-bottom: 2rem;">
+                    <h3 style="margin-bottom: 1rem;">Comparison with Previous Runs</h3>
+                    <div style="background: #f8fafc; padding: 1.5rem; border-radius: 8px;">
+                        <p><strong>This Run:</strong> 87% success rate (13/15 passed)</p>
+                        <p><strong>Previous Run:</strong> 80% success rate (12/15 passed)</p>
+                        <p style="color: #10b981; font-weight: 600;">📈 +7% improvement</p>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 2rem;">
+                    <h3 style="margin-bottom: 1rem;">Quick Actions</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                        <button class="template-card" style="border: 1px solid #d1d5db;">
+                            <div class="template-icon" style="background: #e0e7ff;">🔄</div>
+                            <h4>Run Again</h4>
+                            <p>Execute the same evaluation with current settings</p>
+                        </button>
+                        <button class="template-card" style="border: 1px solid #d1d5db;">
+                            <div class="template-icon" style="background: #fef3c7;">✏️</div>
+                            <h4>Modify Test Cases</h4>
+                            <p>Add, edit, or remove test cases based on results</p>
+                        </button>
+                        <button class="template-card" style="border: 1px solid #d1d5db;">
+                            <div class="template-icon" style="background: #dcfce7;">⚙️</div>
+                            <h4>Adjust Settings</h4>
+                            <p>Fine-tune evaluation criteria and parameters</p>
+                        </button>
+                        <button class="template-card" style="border: 1px solid #d1d5db;">
+                            <div class="template-icon" style="background: #fee2e2;">📋</div>
+                            <h4>Create New Evaluation</h4>
+                            <p>Start fresh with different test scenarios</p>
+                        </button>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 style="margin-bottom: 1rem;">Share & Collaborate</h3>
+                    <div style="background: #f8fafc; padding: 1.5rem; border-radius: 8px;">
+                        <p style="margin-bottom: 1rem;">Share these results with your team or stakeholders:</p>
+                        <div style="display: flex; gap: 1rem;">
+                            <button class="nav-btn">📧 Email Report</button>
+                            <button class="nav-btn">💬 Post to Slack</button>
+                            <button class="nav-btn">📝 Create Issue</button>
+                            <button class="nav-btn">📊 Add to Dashboard</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="step-navigation">
+                <button class="nav-btn" onclick="prevStep()">Previous</button>
+                <button class="nav-btn primary">Done</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let currentStep = 3;
+        const totalSteps = 5;
+
+        function showStep(stepNumber) {
+            // Hide all steps
+            document.querySelectorAll('.step-content').forEach(step => {
+                step.classList.remove('active');
+            });
+
+            // Show current step
+            document.getElementById(`step-${stepNumber}`).classList.add('active');
+
+            // Update step indicator
+            document.querySelectorAll('.step').forEach((step, index) => {
+                step.classList.remove('completed', 'active');
+                if (index + 1 < stepNumber) {
+                    step.classList.add('completed');
+                    step.querySelector('.step-number').textContent = '✓';
+                } else if (index + 1 === stepNumber) {
+                    step.classList.add('active');
+                    step.querySelector('.step-number').textContent = index + 1;
+                } else {
+                    step.querySelector('.step-number').textContent = index + 1;
+                }
+            });
+
+            currentStep = stepNumber;
+        }
+
+        function nextStep() {
+            if (currentStep < totalSteps) {
+                showStep(currentStep + 1);
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 1) {
+                showStep(currentStep - 1);
+            }
+        }
+
+        // Template card selection
+        document.querySelectorAll('.template-card').forEach(card => {
+            card.addEventListener('click', function() {
+                document.querySelectorAll('.template-card').forEach(c => c.classList.remove('selected'));
+                this.classList.add('selected');
+            });
+        });
+
+        // Upload zone interaction
+        document.querySelector('.upload-zone').addEventListener('click', function() {
+            // Simulate file upload dialog
+            alert('File upload dialog would open here');
+        });
+
+        // Run button animation
+        document.querySelector('.run-button').addEventListener('click', function() {
+            this.style.transform = 'scale(0.95)';
+            setTimeout(() => {
+                this.style.transform = '';
+            }, 150);
+        });
+
+        // Progress simulation
+        function simulateProgress() {
+            const progressFill = document.querySelector('.progress-fill');
+            const circleInner = document.querySelector('.circle-inner');
+            let progress = 67;
+            
+            const interval = setInterval(() => {
+                progress += Math.random() * 5;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(interval);
+                    // Auto-advance to results when complete
+                    setTimeout(() => {
+                        showStep(4);
+                    }, 1000);
+                }
+                
+                progressFill.style.width = `${progress}%`;
+                circleInner.textContent = `${Math.round(progress)}%`;
+                
+                // Update progress circle
+                const circleBg = document.querySelector('.circle-bg');
+                circleBg.style.background = `conic-gradient(#3b82f6 ${progress}%, #e5e7eb ${progress}%)`;
+            }, 2000);
+        }
+
+        // Initialize
+        showStep(currentStep);
+        
+        // Start progress simulation if on run step
+        if (currentStep === 3) {
+            setTimeout(simulateProgress, 3000);
+        }
+
+        // Add keyboard navigation
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowLeft') {
+                prevStep();
+            } else if (e.key === 'ArrowRight') {
+                nextStep();
+            }
+        });
+    </script>
+</body>
+</html>

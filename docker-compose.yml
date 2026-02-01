@@ -1,0 +1,365 @@
+# Chicory Platform - Unified Docker Compose
+# Single command to start the entire platform: docker compose up -d
+
+name: chicory
+
+services:
+  # ===========================================================================
+  # Infrastructure Services
+  # ===========================================================================
+
+  mongodb:
+    image: mongo:7.0
+    container_name: chicory-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-chicory}
+      MONGO_INITDB_DATABASE: chicory
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - chicory-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: chicory-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-chicory}
+    volumes:
+      - redis_data:/data
+    networks:
+      - chicory-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-chicory}", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: chicory-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-chicory}
+      RABBITMQ_DEFAULT_VHOST: /
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - chicory-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: chicory-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - chicory-network
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # MinIO bucket initialization (creates default buckets on startup)
+  minio-init:
+    image: minio/mc:latest
+    container_name: chicory-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set myminio http://minio:9000 minioadmin minioadmin;
+      mc mb myminio/chicory-data --ignore-existing;
+      mc mb myminio/chicory-audit-trails --ignore-existing;
+      mc anonymous set download myminio/chicory-data;
+      echo 'Buckets created successfully';
+      exit 0;
+      "
+    networks:
+      - chicory-network
+
+  # ===========================================================================
+  # Core Application Services
+  # ===========================================================================
+
+  backend-api:
+    build:
+      context: ./services/backend-api
+      dockerfile: Dockerfile
+    container_name: chicory-backend-api
+    ports:
+      - "8000:8000"
+    environment:
+      # Database
+      MONGODB_URI: mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-chicory}@mongodb:27017/chicory?authSource=admin&tls=false
+      REDIS_URL: redis://:${REDIS_PASSWORD:-chicory}@redis:6379
+      # RabbitMQ
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_VHOST: /
+      RABBITMQ_USERNAME: ${RABBITMQ_USER:-admin}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-chicory}
+      # Exchanges and queues
+      AGENT_EXCHANGE_NAME: task_exchange
+      AGENT_QUEUE_NAME: agent_tasks_queue
+      AGENT_ROUTING_KEY: agent.task
+      TRAINING_EXCHANGE_NAME: training_exchange
+      TRAINING_QUEUE_NAME: training_queue
+      TRAINING_ROUTING_KEY: training.job
+      # API Keys
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      # S3/MinIO Storage
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-chicory-data}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-http://minio:9000}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      TASK_AUDIT_TRAIL_S3_BUCKET_NAME: ${TASK_AUDIT_TRAIL_S3_BUCKET_NAME:-chicory-audit-trails}
+      # Python
+      PYTHONPATH: /app
+      PYTHONUNBUFFERED: 1
+    networks:
+      - chicory-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  webapp:
+    build:
+      context: ./services/webapp
+      dockerfile: Dockerfile
+    container_name: chicory-webapp
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      CHICORY_API_URL: http://backend-api:8000
+      # Auth (PropelAuth)
+      REMIX_PUBLIC_AUTH_URL: ${REMIX_PUBLIC_AUTH_URL}
+      PROPELAUTH_API_KEY: ${PROPELAUTH_API_KEY}
+      PROPELAUTH_VERIFIER_KEY: ${PROPELAUTH_VERIFIER_KEY}
+      PROPELAUTH_REDIRECT_URI: ${PROPELAUTH_REDIRECT_URI:-http://localhost:3000/api/auth/callback}
+    networks:
+      - chicory-network
+    depends_on:
+      - backend-api
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  agent-service:
+    build:
+      context: ./services/agent-service
+      dockerfile: Dockerfile
+    container_name: chicory-agent-service
+    ports:
+      - "8083:8083"
+    environment:
+      BACKEND_API_URL: http://backend-api:8000
+      REDIS_URL: redis://:${REDIS_PASSWORD:-chicory}@redis:6379
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      PYTHONUNBUFFERED: 1
+    networks:
+      - chicory-network
+    depends_on:
+      - backend-api
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # ===========================================================================
+  # MCP Servers
+  # ===========================================================================
+
+  db-mcp-server:
+    build:
+      context: ./services/db-mcp-server
+      dockerfile: Dockerfile
+    container_name: chicory-db-mcp-server
+    ports:
+      - "8081:8080"
+    environment:
+      BACKEND_API_URL: http://backend-api:8000
+      PYTHONUNBUFFERED: 1
+    networks:
+      - chicory-network
+    depends_on:
+      - backend-api
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  tools-mcp-server:
+    build:
+      context: ./services/tools-mcp-server
+      dockerfile: Dockerfile
+    container_name: chicory-tools-mcp-server
+    ports:
+      - "8082:8080"
+    environment:
+      BACKEND_API_URL: http://backend-api:8000
+      PYTHONUNBUFFERED: 1
+    networks:
+      - chicory-network
+    depends_on:
+      - backend-api
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # ===========================================================================
+  # ML Workers
+  # ===========================================================================
+
+  training-worker:
+    build:
+      context: ./services/training-worker
+      dockerfile: Dockerfile
+    container_name: chicory-training-worker
+    environment:
+      TRAINING_TYPE: managed
+      API_BASE_URL: http://backend-api:8000
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_VHOST: /
+      RABBITMQ_USERNAME: ${RABBITMQ_USER:-admin}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-chicory}
+      TRAINING_EXCHANGE_NAME: training_exchange
+      TRAINING_QUEUE_NAME: training_queue
+      TRAINING_ROUTING_KEY: training.job
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      # S3/MinIO Storage
+      S3_BUCKET: ${S3_BUCKET:-chicory-data}
+      S3_REGION: ${AWS_REGION:-us-east-1}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-http://minio:9000}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
+      PYTHONUNBUFFERED: 1
+    networks:
+      - chicory-network
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+
+  inference-worker:
+    build:
+      context: ./services/inference-worker
+      dockerfile: Dockerfile
+    container_name: chicory-inference-worker
+    environment:
+      SERVICE_TYPE: managed
+      API_BASE_URL: http://backend-api:8000
+      # MCP Servers
+      DB_MCP_SERVER_URL: http://db-mcp-server:8080
+      TOOLS_MCP_SERVER_URL: http://tools-mcp-server:8080
+      # RabbitMQ
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_VHOST: /
+      RABBITMQ_USERNAME: ${RABBITMQ_USER:-admin}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-chicory}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      # S3/MinIO Storage
+      S3_BUCKET: ${S3_BUCKET:-chicory-data}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-chicory-data}
+      S3_REGION: ${AWS_REGION:-us-east-1}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-http://minio:9000}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
+      TASK_AUDIT_TRAIL_S3_BUCKET_NAME: ${TASK_AUDIT_TRAIL_S3_BUCKET_NAME:-chicory-audit-trails}
+      PYTHONUNBUFFERED: 1
+    networks:
+      - chicory-network
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+
+# ===========================================================================
+# Networks
+# ===========================================================================
+
+networks:
+  chicory-network:
+    driver: bridge
+
+# ===========================================================================
+# Volumes
+# ===========================================================================
+
+volumes:
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  minio_data:
+    driver: local

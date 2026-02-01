@@ -1,0 +1,51 @@
+# Chicory Platform - Development Overrides
+# Use with: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+# Or simply: make dev
+
+services:
+  # Backend API with hot reload
+  backend-api:
+    volumes:
+      - ./services/backend-api:/app
+    environment:
+      DEBUG: "true"
+      LOG_LEVEL: DEBUG
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Webapp with hot reload
+  webapp:
+    volumes:
+      - ./services/webapp:/app
+      - webapp_node_modules:/app/node_modules
+    environment:
+      NODE_ENV: development
+    command: yarn dev
+
+  # Agent service with hot reload
+  agent-service:
+    volumes:
+      - ./services/agent-service:/app
+    environment:
+      DEBUG: "true"
+      LOG_LEVEL: DEBUG
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8083 --reload
+
+  # DB MCP server with hot reload
+  db-mcp-server:
+    volumes:
+      - ./services/db-mcp-server:/app
+    environment:
+      DEBUG: "true"
+    command: uvicorn server:app --host 0.0.0.0 --port 8080 --reload
+
+  # Tools MCP server with hot reload
+  tools-mcp-server:
+    volumes:
+      - ./services/tools-mcp-server:/app
+    environment:
+      DEBUG: "true"
+    command: uvicorn server:app --host 0.0.0.0 --port 8080 --reload
+
+volumes:
+  webapp_node_modules:
+    driver: local

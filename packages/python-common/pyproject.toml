@@ -1,0 +1,66 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "chicory-common"
+version = "0.1.0"
+description = "Shared utilities for Chicory platform services"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+authors = [
+    { name = "Chicory AI", email = "engineering@chicory.ai" }
+]
+
+dependencies = [
+    "pydantic>=2.5.0,<3.0.0",
+    "pydantic-settings>=2.1.0,<3.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+database = [
+    "pymongo>=4.6.0,<5.0.0",
+    "redis>=5.0.0,<6.0.0",
+    "motor>=3.3.0,<4.0.0",
+]
+messaging = [
+    "pika>=1.3.0,<2.0.0",
+    "aio-pika>=9.0.0,<10.0.0",
+]
+aws = [
+    "boto3>=1.34.0",
+]
+all = [
+    "chicory-common[database,messaging,aws]",
+]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.7.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["chicory_common"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311", "py312"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

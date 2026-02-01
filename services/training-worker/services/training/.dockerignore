@@ -1,0 +1,49 @@
+# Exclude data directories
+data/
+results/
+**/data/
+
+# Temporary directories
+scratch_space/
+**/temp/
+
+# Development environment
+.venv/
+.git/
+.github/
+.idea/
+.DS_Store
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/*.so
+
+# Log files
+**/*.log
+
+# Environment files (handled separately in Docker builds)
+.env
+.env.*
+!.env.example
+
+# Test directories
+tests/
+evals/
+
+# Local model files and embeddings
+**/*.onnx
+**/*.bin
+**/*.pt
+**/*.pth
+**/*.h5
+**/*.hdf5
+**/*.pkl
+**/*.pickle
+
+# Large downloaded resources
+**/downloads/
+
+# Any local DB files
+**/*.db
+**/*.sqlite
+**/*.sqlite3

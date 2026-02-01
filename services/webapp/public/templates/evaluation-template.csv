@@ -1,0 +1,6 @@
+task,expected_output,evaluation_guideline
+"What is the capital of France?","Paris","The response should correctly identify Paris as the capital of France"
+"Explain photosynthesis in simple terms","Photosynthesis is the process by which plants use sunlight, water, and carbon dioxide to create oxygen and energy in the form of sugar","The response should explain that plants convert sunlight, water, and CO2 into oxygen and sugar/energy"
+"Write a haiku about winter","A haiku with 5-7-5 syllable structure about winter themes","The response should follow the 5-7-5 syllable pattern and include winter imagery"
+"Calculate 15% tip on $45.80","$6.87","The response should correctly calculate 15% of $45.80 which equals $6.87"
+"List three benefits of regular exercise","1. Improves cardiovascular health 2. Helps maintain healthy weight 3. Boosts mood and mental health","The response should list at least three legitimate health benefits of exercise"

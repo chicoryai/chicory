@@ -1,0 +1,187 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  Chicory - Customer cross-account role for Glue, Athena, and S3 access.
+  Supports ReadOnly and ReadWrite access levels with ExternalId protection.
+
+Parameters:
+  ChicoryAccountId:
+    Type: String
+    Description: Chicory AWS Account ID that will assume this role.
+  ExternalId:
+    Type: String
+    Description: External ID provided by Chicory for this project (e.g., chicory-<project-uuid>).
+  RoleName:
+    Type: String
+    Default: GlueAccessRoleForChicory
+    Description: IAM role name to create.
+  AccessLevel:
+    Type: String
+    AllowedValues:
+      - ReadOnly
+      - ReadWrite
+    Default: ReadOnly
+    Description: Glue/Athena access level granted to Chicory.
+  ResourceArns:
+    Type: CommaDelimitedList
+    Default: "arn:aws:glue:*:*:catalog,arn:aws:glue:*:*:database/*,arn:aws:glue:*:*:table/*/*,arn:aws:s3:::*,arn:aws:s3:::*/*"
+    Description: Comma-separated ARNs to scope permissions. Keep defaults for all Glue + all S3.
+
+Conditions:
+  IsReadOnly: !Equals [!Ref AccessLevel, "ReadOnly"]
+  IsReadWrite: !Equals [!Ref AccessLevel, "ReadWrite"]
+
+Resources:
+  ChicoryAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      Description: >
+        Cross-account role granting Chicory Glue/Athena access with ExternalId safeguard.
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${ChicoryAccountId}:root
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Ref ExternalId
+      Tags:
+        - Key: Vendor
+          Value: Chicory
+        - Key: ExternalId
+          Value: !Ref ExternalId
+
+  ChicoryReadOnlyPolicy:
+    Condition: IsReadOnly
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: ChicoryReadOnly
+      Roles:
+        - !Ref ChicoryAccessRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: GlueCatalogReadAccess
+            Effect: Allow
+            Action:
+              - glue:GetDatabase
+              - glue:GetDatabases
+              - glue:GetTable
+              - glue:GetTables
+              - glue:GetPartition
+              - glue:GetPartitions
+              - glue:SearchTables
+              - glue:GetUserDefinedFunction
+              - glue:GetUserDefinedFunctions
+            Resource: !Ref ResourceArns
+          - Sid: AthenaQueryRead
+            Effect: Allow
+            Action:
+              - athena:GetDataCatalog
+              - athena:ListDataCatalogs
+              - athena:GetWorkGroup
+              - athena:ListWorkGroups
+              - athena:GetQueryExecution
+              - athena:GetQueryResults
+              - athena:ListQueryExecutions
+              - athena:BatchGetQueryExecution
+            Resource: "*"
+          - Sid: S3ReadAccess
+            Effect: Allow
+            Action:
+              - s3:GetBucketLocation
+              - s3:GetObject
+              - s3:ListBucket
+            Resource: "*"
+
+  ChicoryReadWritePolicy:
+    Condition: IsReadWrite
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: ChicoryReadWrite
+      Roles:
+        - !Ref ChicoryAccessRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: GlueCatalogReadAccess
+            Effect: Allow
+            Action:
+              - glue:GetDatabase
+              - glue:GetDatabases
+              - glue:GetTable
+              - glue:GetTables
+              - glue:GetPartition
+              - glue:GetPartitions
+              - glue:SearchTables
+              - glue:GetUserDefinedFunction
+              - glue:GetUserDefinedFunctions
+            Resource: "*"
+          - Sid: GlueDataQualityAccess
+            Effect: Allow
+            Action:
+              - glue:CreateDataQualityRuleset
+              - glue:GetDataQualityRuleset
+              - glue:UpdateDataQualityRuleset
+              - glue:DeleteDataQualityRuleset
+              - glue:ListDataQualityRulesets
+              - glue:StartDataQualityRuleRecommendationRun
+              - glue:GetDataQualityRuleRecommendationRun
+              - glue:StartDataQualityRulesetEvaluationRun
+              - glue:GetDataQualityRulesetEvaluationRun
+              - glue:ListDataQualityResults
+            Resource: "*"
+          - Sid: GlueColumnStatisticsAccess
+            Effect: Allow
+            Action:
+              - glue:GetColumnStatisticsForTable
+              - glue:GetColumnStatisticsForPartition
+              - glue:UpdateColumnStatisticsForTable
+              - glue:UpdateColumnStatisticsForPartition
+              - glue:DeleteColumnStatisticsForTable
+              - glue:DeleteColumnStatisticsForPartition
+            Resource: "*"
+          - Sid: AthenaWorkGroupAccess
+            Effect: Allow
+            Action:
+              - athena:CreateWorkGroup
+              - athena:GetWorkGroup
+              - athena:ListWorkGroups
+              - athena:UpdateWorkGroup
+              - athena:DeleteWorkGroup
+            Resource: "*"
+          - Sid: AthenaDataCatalogAccess
+            Effect: Allow
+            Action:
+              - athena:GetDataCatalog
+              - athena:ListDataCatalogs
+              - athena:UpdateDataCatalog
+            Resource: "*"
+          - Sid: AthenaQueryAccess
+            Effect: Allow
+            Action:
+              - athena:StartQueryExecution
+              - athena:GetQueryExecution
+              - athena:GetQueryResults
+              - athena:StopQueryExecution
+              - athena:ListQueryExecutions
+              - athena:BatchGetQueryExecution
+            Resource: "*"
+          - Sid: S3AccessForAthenaResults
+            Effect: Allow
+            Action:
+              - s3:GetBucketLocation
+              - s3:GetObject
+              - s3:ListBucket
+              - s3:PutObject
+            Resource: "*"
+
+Outputs:
+  RoleArn:
+    Description: ARN of the created Chicory cross-account role
+    Value: !GetAtt ChicoryAccessRole.Arn
+  AccessLevelSelected:
+    Description: Access level granted by this deployment
+    Value: !Ref AccessLevel

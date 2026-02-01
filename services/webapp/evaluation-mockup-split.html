@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evaluation Dashboard - Split View</title>
+    <style>
+        /* CSS Variables for theming */
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --border-color: #e2e8f0;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --accent-primary: #3b82f6;
+            --accent-secondary: #1d4ed8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --sidebar-width: 30%;
+            --header-height: 64px;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --border-color: #475569;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            height: var(--header-height);
+            background-color: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .breadcrumb-separator {
+            color: var(--text-muted);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-secondary);
+        }
+
+        .btn-secondary {
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--border-color);
+        }
+
+        /* Main Layout */
+        .main-container {
+            display: flex;
+            height: calc(100vh - var(--header-height));
+        }
+
+        /* Metrics Dashboard */
+        .metrics-dashboard {
+            position: absolute;
+            top: var(--header-height);
+            left: 0;
+            right: 0;
+            background-color: var(--bg-primary);
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            z-index: 40;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+
+        .metric-card {
+            background-color: var(--bg-secondary);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .metric-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .metric-icon.blue { background-color: #dbeafe; color: var(--accent-primary); }
+        .metric-icon.green { background-color: #d1fae5; color: var(--success); }
+        .metric-icon.yellow { background-color: #fef3c7; color: var(--warning); }
+        .metric-icon.purple { background-color: #ede9fe; color: #8b5cf6; }
+
+        .metric-content h3 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .metric-content p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--bg-primary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            margin-top: 140px; /* Space for metrics */
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .search-bar {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .search-bar:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        .evaluation-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 20px 20px;
+        }
+
+        .evaluation-card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .evaluation-card:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+        }
+
+        .evaluation-card.selected {
+            border-color: var(--accent-primary);
+            background-color: #eff6ff;
+        }
+
+        .evaluation-header {
+            display: flex;
+            justify-content: between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+
+        .evaluation-title {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+
+        .evaluation-description {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.4;
+            margin-bottom: 12px;
+        }
+
+        .evaluation-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .test-count {
+            color: var(--text-muted);
+        }
+
+        .score-badge {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 12px;
+        }
+
+        .score-badge.high { background-color: #d1fae5; color: #065f46; }
+        .score-badge.medium { background-color: #fef3c7; color: #92400e; }
+        .score-badge.low { background-color: #fee2e2; color: #991b1b; }
+
+        .load-more {
+            margin: 20px;
+            text-align: center;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            margin-top: 140px; /* Space for metrics */
+        }
+
+        .content-header {
+            background-color: var(--bg-primary);
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .content-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .content-description {
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .content-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        /* Tabs */
+        .tabs {
+            background-color: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab-list {
+            display: flex;
+            padding: 0 24px;
+        }
+
+        .tab-button {
+            padding: 12px 16px;
+            border: none;
+            background: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .tab-button.active {
+            color: var(--accent-primary);
+            border-bottom-color: var(--accent-primary);
+        }
+
+        .tab-button:hover {
+            color: var(--text-primary);
+        }
+
+        .tab-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        .tab-panel {
+            display: none;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        /* Tab Content Styles */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background-color: var(--bg-primary);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .stat-card h4 {
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .stat-card .value {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .chart-placeholder {
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            margin-bottom: 24px;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: var(--bg-primary);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        .table th,
+        .table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .table th {
+            background-color: var(--bg-tertiary);
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .table td {
+            font-size: 14px;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-badge.completed { background-color: #d1fae5; color: #065f46; }
+        .status-badge.running { background-color: #dbeafe; color: #1e40af; }
+        .status-badge.failed { background-color: #fee2e2; color: #991b1b; }
+
+        .timeline {
+            space-y: 16px;
+        }
+
+        .timeline-item {
+            padding: 16px;
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin-bottom: 16px;
+        }
+
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-input,
+        .form-textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-input:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+            
+            .main-content {
+                width: 100%;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Theme Toggle */
+        .theme-toggle {
+            background: none;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 6px;
+            cursor: pointer;
+            color: var(--text-primary);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <nav class="breadcrumb">
+            <span>Dashboard</span>
+            <span class="breadcrumb-separator">/</span>
+            <span>Evaluations</span>
+        </nav>
+        <div class="header-actions">
+            <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+            <button class="btn btn-secondary">Import</button>
+            <button class="btn btn-primary">
+                <span>+</span>
+                New Evaluation
+            </button>
+        </div>
+    </header>
+
+    <!-- Metrics Dashboard -->
+    <div class="metrics-dashboard">
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-icon blue">📊</div>
+                <div class="metric-content">
+                    <h3>24</h3>
+                    <p>Total Evaluations</p>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon green">▶️</div>
+                <div class="metric-content">
+                    <h3>156</h3>
+                    <p>Total Runs</p>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon yellow">📈</div>
+                <div class="metric-content">
+                    <h3>87.3%</h3>
+                    <p>Average Pass Rate</p>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon purple">✅</div>
+                <div class="metric-content">
+                    <h3>342</h3>
+                    <p>Total Test Cases</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <input type="text" class="search-bar" placeholder="Search evaluations...">
+            </div>
+            <div class="evaluation-list">
+                <div class="evaluation-card selected" onclick="selectEvaluation(this, 'customer-support')">
+                    <div class="evaluation-title">Customer Support Quality</div>
+                    <div class="evaluation-description">Evaluates the quality and helpfulness of customer support responses</div>
+                    <div class="evaluation-meta">
+                        <span class="test-count">24 test cases</span>
+                        <span class="score-badge high">92%</span>
+                    </div>
+                </div>
+
+                <div class="evaluation-card" onclick="selectEvaluation(this, 'code-review')">
+                    <div class="evaluation-title">Code Review Assistant</div>
+                    <div class="evaluation-description">Tests the accuracy of automated code review suggestions</div>
+                    <div class="evaluation-meta">
+                        <span class="test-count">18 test cases</span>
+                        <span class="score-badge medium">76%</span>
+                    </div>
+                </div>
+
+                <div class="evaluation-card" onclick="selectEvaluation(this, 'sql-generation')">
+                    <div class="evaluation-title">SQL Query Generation</div>
+                    <div class="evaluation-description">Validates generated SQL queries for business questions</div>
+                    <div class="evaluation-meta">
+                        <span class="test-count">32 test cases</span>
+                        <span class="score-badge high">89%</span>
+                    </div>
+                </div>
+
+                <div class="evaluation-card" onclick="selectEvaluation(this, 'data-analysis')">
+                    <div class="evaluation-title">Data Analysis Reports</div>
+                    <div class="evaluation-description">Evaluates the accuracy of automated data analysis reports</div>
+                    <div class="evaluation-meta">
+                        <span class="test-count">15 test cases</span>
+                        <span class="score-badge low">64%</span>
+                    </div>
+                </div>
+
+                <div class="evaluation-card" onclick="selectEvaluation(this, 'content-moderation')">
+                    <div class="evaluation-title">Content Moderation</div>
+                    <div class="evaluation-description">Tests content classification and moderation decisions</div>
+                    <div class="evaluation-meta">
+                        <span class="test-count">28 test cases</span>
+                        <span class="score-badge high">94%</span>
+                    </div>
+                </div>
+
+                <div class="evaluation-card" onclick="selectEvaluation(this, 'sentiment-analysis')">
+                    <div class="evaluation-title">Sentiment Analysis</div>
+                    <div class="evaluation-description">Validates sentiment classification accuracy</div>
+                    <div class="evaluation-meta">
+                        <span class="test-count">21 test cases</span>
+                        <span class="score-badge medium">82%</span>
+                    </div>
+                </div>
+            </div>
+            <div class="load-more">
+                <button class="btn btn-secondary">Load More</button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-header">
+                <h1 class="content-title" id="evaluation-title">Customer Support Quality</h1>
+                <p class="content-description" id="evaluation-description">Evaluates the quality and helpfulness of customer support responses across various scenarios including technical issues, billing questions, and general inquiries.</p>
+                <div class="content-actions">
+                    <button class="btn btn-primary">Run Evaluation</button>
+                    <button class="btn btn-secondary">Edit</button>
+                    <button class="btn btn-secondary">Delete</button>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <div class="tab-list">
+                    <button class="tab-button active" onclick="switchTab('overview')">Overview</button>
+                    <button class="tab-button" onclick="switchTab('test-cases')">Test Cases</button>
+                    <button class="tab-button" onclick="switchTab('run-history')">Run History</button>
+                    <button class="tab-button" onclick="switchTab('settings')">Settings</button>
+                </div>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="tab-content">
+                <!-- Overview Tab -->
+                <div id="overview" class="tab-panel active">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <h4>Last Run Score</h4>
+                            <div class="value" style="color: var(--success);">92%</div>
+                        </div>
+                        <div class="stat-card">
+                            <h4>Total Runs</h4>
+                            <div class="value">15</div>
+                        </div>
+                        <div class="stat-card">
+                            <h4>Avg. Response Time</h4>
+                            <div class="value">2.3s</div>
+                        </div>
+                    </div>
+
+                    <div class="chart-placeholder">
+                        📈 Score Trend Chart (Last 30 days)
+                    </div>
+
+                    <div class="chart-placeholder">
+                        📊 Pass/Fail Distribution by Category
+                    </div>
+                </div>
+
+                <!-- Test Cases Tab -->
+                <div id="test-cases" class="tab-panel">
+                    <div style="margin-bottom: 16px;">
+                        <button class="btn btn-primary">Add Test Case</button>
+                        <button class="btn btn-secondary">Import CSV</button>
+                    </div>
+                    
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Task</th>
+                                <th>Expected Output</th>
+                                <th>Guidelines</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Handle billing dispute for overcharge</td>
+                                <td>Apologize, investigate, offer refund if valid</td>
+                                <td>Empathetic, solution-oriented, follow policy</td>
+                                <td>
+                                    <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;">Edit</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Explain technical feature to non-technical user</td>
+                                <td>Clear, simple explanation with examples</td>
+                                <td>Avoid jargon, use analogies, be patient</td>
+                                <td>
+                                    <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;">Edit</button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Handle frustrated customer complaint</td>
+                                <td>Acknowledge frustration, provide solution</td>
+                                <td>De-escalation techniques, active listening</td>
+                                <td>
+                                    <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;">Edit</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Run History Tab -->
+                <div id="run-history" class="tab-panel">
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-header">
+                                <div>
+                                    <strong>Run #15</strong>
+                                    <span class="status-badge completed">Completed</span>
+                                </div>
+                                <span style="color: var(--text-secondary); font-size: 14px;">2 hours ago</span>
+                            </div>
+                            <div style="color: var(--text-secondary); margin-bottom: 8px;">
+                                24 test cases • 22 passed • 2 failed • Score: 92%
+                            </div>
+                            <div style="font-size: 14px;">
+                                <strong>Failed cases:</strong> Billing dispute handling, Technical explanation clarity
+                            </div>
+                        </div>
+
+                        <div class="timeline-item">
+                            <div class="timeline-header">
+                                <div>
+                                    <strong>Run #14</strong>
+                                    <span class="status-badge completed">Completed</span>
+                                </div>
+                                <span style="color: var(--text-secondary); font-size: 14px;">1 day ago</span>
+                            </div>
+                            <div style="color: var(--text-secondary); margin-bottom: 8px;">
+                                24 test cases • 21 passed • 3 failed • Score: 88%
+                            </div>
+                        </div>
+
+                        <div class="timeline-item">
+                            <div class="timeline-header">
+                                <div>
+                                    <strong>Run #13</strong>
+                                    <span class="status-badge failed">Failed</span>
+                                </div>
+                                <span style="color: var(--text-secondary); font-size: 14px;">3 days ago</span>
+                            </div>
+                            <div style="color: var(--text-secondary); margin-bottom: 8px;">
+                                Error: Model timeout after 30 seconds
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Tab -->
+                <div id="settings" class="tab-panel">
+                    <form>
+                        <div class="form-group">
+                            <label class="form-label">Evaluation Name</label>
+                            <input type="text" class="form-input" value="Customer Support Quality">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-textarea">Evaluates the quality and helpfulness of customer support responses across various scenarios including technical issues, billing questions, and general inquiries.</textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Evaluation Criteria</label>
+                            <textarea class="form-textarea">1. Accuracy of information provided
+2. Empathy and understanding shown
+3. Clarity of communication
+4. Problem-solving approach
+5. Following company policies</textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Tags</label>
+                            <input type="text" class="form-input" value="customer-service, support, quality-assurance">
+                        </div>
+
+                        <div style="display: flex; gap: 12px;">
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                            <button type="button" class="btn btn-secondary">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Tab switching functionality
+        function switchTab(tabName) {
+            // Hide all tab panels
+            const panels = document.querySelectorAll('.tab-panel');
+            panels.forEach(panel => panel.classList.remove('active'));
+            
+            // Remove active class from all tab buttons
+            const buttons = document.querySelectorAll('.tab-button');
+            buttons.forEach(button => button.classList.remove('active'));
+            
+            // Show selected tab panel
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to clicked button
+            event.target.classList.add('active');
+        }
+
+        // Evaluation selection functionality
+        function selectEvaluation(element, evaluationId) {
+            // Remove selected class from all cards
+            const cards = document.querySelectorAll('.evaluation-card');
+            cards.forEach(card => card.classList.remove('selected'));
+            
+            // Add selected class to clicked card
+            element.classList.add('selected');
+            
+            // Update main content based on selection
+            const evaluations = {
+                'customer-support': {
+                    title: 'Customer Support Quality',
+                    description: 'Evaluates the quality and helpfulness of customer support responses across various scenarios including technical issues, billing questions, and general inquiries.'
+                },
+                'code-review': {
+                    title: 'Code Review Assistant',
+                    description: 'Tests the accuracy of automated code review suggestions including code quality, security vulnerabilities, and best practices compliance.'
+                },
+                'sql-generation': {
+                    title: 'SQL Query Generation',
+                    description: 'Validates generated SQL queries for business questions, ensuring syntactic correctness and logical accuracy for data retrieval tasks.'
+                },
+                'data-analysis': {
+                    title: 'Data Analysis Reports',
+                    description: 'Evaluates the accuracy of automated data analysis reports including statistical insights, trend identification, and recommendation quality.'
+                },
+                'content-moderation': {
+                    title: 'Content Moderation',
+                    description: 'Tests content classification and moderation decisions for policy violations, spam detection, and content appropriateness.'
+                },
+                'sentiment-analysis': {
+                    title: 'Sentiment Analysis',
+                    description: 'Validates sentiment classification accuracy across different text types including social media, reviews, and customer feedback.'
+                }
+            };
+            
+            const evaluation = evaluations[evaluationId];
+            if (evaluation) {
+                document.getElementById('evaluation-title').textContent = evaluation.title;
+                document.getElementById('evaluation-description').textContent = evaluation.description;
+            }
+        }
+
+        // Theme toggle functionality
+        function toggleTheme() {
+            const body = document.body;
+            const button = document.querySelector('.theme-toggle');
+            
+            if (body.getAttribute('data-theme') === 'dark') {
+                body.removeAttribute('data-theme');
+                button.textContent = '🌙';
+            } else {
+                body.setAttribute('data-theme', 'dark');
+                button.textContent = '☀️';
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set initial state
+            console.log('Evaluation Dashboard loaded');
+        });
+    </script>
+</body>
+</html>

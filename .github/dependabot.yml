@@ -1,0 +1,101 @@
+# Dependabot configuration for automated dependency updates
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+
+version: 2
+updates:
+  # Python - Backend API
+  - package-ecosystem: "pip"
+    directory: "/services/backend-api"
+    schedule:
+      interval: "weekly"
+    groups:
+      python-minor:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Python - Agent Service
+  - package-ecosystem: "pip"
+    directory: "/services/agent-service"
+    schedule:
+      interval: "weekly"
+    groups:
+      python-minor:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Python - DB MCP Server
+  - package-ecosystem: "pip"
+    directory: "/services/db-mcp-server"
+    schedule:
+      interval: "weekly"
+
+  # Python - Tools MCP Server
+  - package-ecosystem: "pip"
+    directory: "/services/tools-mcp-server"
+    schedule:
+      interval: "weekly"
+
+  # Python - Training Worker
+  - package-ecosystem: "pip"
+    directory: "/services/training-worker"
+    schedule:
+      interval: "weekly"
+
+  # Python - Inference Worker
+  - package-ecosystem: "pip"
+    directory: "/services/inference-worker"
+    schedule:
+      interval: "weekly"
+
+  # Python - Common Package
+  - package-ecosystem: "pip"
+    directory: "/packages/python-common"
+    schedule:
+      interval: "weekly"
+
+  # Node.js - Webapp
+  - package-ecosystem: "npm"
+    directory: "/services/webapp"
+    schedule:
+      interval: "weekly"
+    groups:
+      npm-minor:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Node.js - E2E Tests
+  - package-ecosystem: "npm"
+    directory: "/e2e"
+    schedule:
+      interval: "weekly"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # Docker
+  - package-ecosystem: "docker"
+    directory: "/services/backend-api"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "/services/webapp"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "/services/agent-service"
+    schedule:
+      interval: "weekly"

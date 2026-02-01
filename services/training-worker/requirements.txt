@@ -1,0 +1,61 @@
+# =============================================================================
+# Training Worker Dependencies (Managed Mode)
+# Minimal dependencies for RabbitMQ-based training jobs
+# =============================================================================
+
+# Core
+pika>=1.3.0,<2.0.0
+requests>=2.32.0,<3.0.0
+python-dotenv>=1.0.0
+aiohttp>=3.9.0
+boto3>=1.35.0
+httpx>=0.27.0
+
+# Data Processing
+pandas>=2.2.0,<3.0.0
+numpy>=1.26.0,<2.0.0
+pyarrow>=18.0.0
+
+# Validation
+pydantic>=2.9.0,<3.0.0
+pydantic-settings>=2.5.0,<3.0.0
+
+# Document Processing (for document_scanning_task)
+unstructured[pdf,docx,pptx,xlsx,html,md,image]>=0.16.0,<0.17.0
+beautifulsoup4>=4.12.0
+pillow>=11.0.0
+chardet>=5.2.0
+pypdf>=6.1.0
+python-docx>=1.2.0
+lxml>=5.0.0
+
+# Google Integration (for google_doc_scanning)
+google-auth-oauthlib>=1.2.0
+google-auth-httplib2>=0.2.0
+google-api-python-client>=2.150.0
+
+# Database Connectors (conditionally imported)
+databricks-sql-connector>=3.0.0
+databricks-sqlalchemy>=2.0.0
+snowflake-connector-python>=3.10.0
+snowflake-sqlalchemy>=1.6.0
+oracledb>=2.0.0
+google-cloud-bigquery>=3.20.0
+psycopg2-binary>=2.9.0
+
+# Azure (conditionally imported)
+azure-identity>=1.15.0
+azure-storage-blob>=12.20.0
+azure-mgmt-datafactory>=9.0.0
+
+# LangChain (for web scraping tools)
+langchain-community>=0.3.0,<0.4.0
+
+# Utilities
+msgpack>=1.0.0
+gitpython>=3.1.40
+eralchemy>=1.5.0
+graphviz>=0.20.0
+tqdm>=4.66.0
+tiktoken>=0.8.0
+anthropic>=0.40.0

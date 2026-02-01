@@ -1,0 +1,86 @@
+name: PR Schema Change Analysis
+
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  trigger-agent:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get PR information
+        id: pr-info
+        run: |
+          # Get the list of changed files
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
+          
+          # Get the PR diff
+          PR_DIFF=$(git diff ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }})
+          
+          # Prepare the input message for the agent
+          cat << EOF > pr_info.json
+          {
+            "pr_number": "${{ github.event.pull_request.number }}",
+            "pr_title": "${{ github.event.pull_request.title }}",
+            "pr_description": "${{ github.event.pull_request.body }}",
+            "pr_author": "${{ github.event.pull_request.user.login }}",
+            "pr_url": "${{ github.event.pull_request.html_url }}",
+            "base_branch": "${{ github.event.pull_request.base.ref }}",
+            "head_branch": "${{ github.event.pull_request.head.ref }}",
+            "repository": "${{ github.repository }}",
+            "changed_files": $(echo "$CHANGED_FILES" | jq -R -s -c 'split("\n")[:-1]'),
+            "diff": $(echo "$PR_DIFF" | jq -R -s -c '.')
+          }
+          EOF
+          
+          # Create the agent input message
+          AGENT_INPUT="New Pull Request Created - Schema Change Analysis Required
+
+          PR Details:
+          - Number: #${{ github.event.pull_request.number }}
+          - Title: ${{ github.event.pull_request.title }}
+          - Author: ${{ github.event.pull_request.user.login }}
+          - URL: ${{ github.event.pull_request.html_url }}
+          - Base Branch: ${{ github.event.pull_request.base.ref }}
+          - Head Branch: ${{ github.event.pull_request.head.ref }}
+          - Repository: ${{ github.repository }}
+
+          Description:
+          ${{ github.event.pull_request.body }}
+
+          Changed Files:
+          $CHANGED_FILES
+
+          Please analyze this PR for schema changes and their potential impact on downstream systems including BigQuery, DBT, DataHub, and Redash. The full diff and file changes are available through the GitHub API if needed for detailed analysis."
+
+          echo "AGENT_INPUT<<EOF" >> $GITHUB_OUTPUT
+          echo "$AGENT_INPUT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Trigger Chicory Agent
+        run: |
+          CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")
+          
+          curl -X POST https://app.chicory.ai/api/v1/runs \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ secrets.CHICORY_API_TOKEN }}" \
+            -d "{
+              \"agent_name\": \"f3e46b68-1d65-4930-af3e-e5b734c837fa\",
+              \"input\": [
+                {
+                  \"parts\": [
+                    {
+                      \"content_type\": \"text/plain\",
+                      \"content\": $(echo '${{ steps.pr-info.outputs.AGENT_INPUT }}' | jq -R -s -c '.')
+                    }
+                  ],
+                  \"created_at\": \"$CURRENT_TIME\"
+                }
+              ]
+            }"

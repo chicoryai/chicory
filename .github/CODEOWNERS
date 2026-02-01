@@ -1,0 +1,36 @@
+# Chicory Code Owners
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything
+* @chicoryai/engineering
+
+# Backend API
+/services/backend-api/ @chicoryai/backend
+
+# Webapp
+/services/webapp/ @chicoryai/frontend
+
+# Agent Service
+/services/agent-service/ @chicoryai/agents
+
+# MCP Servers
+/services/db-mcp-server/ @chicoryai/integrations
+/services/tools-mcp-server/ @chicoryai/integrations
+
+# ML Workers
+/services/training-worker/ @chicoryai/ml
+/services/inference-worker/ @chicoryai/ml
+
+# Shared packages
+/packages/ @chicoryai/platform
+
+# Infrastructure and CI/CD
+/.github/ @chicoryai/platform
+/docker-compose*.yml @chicoryai/platform
+/Makefile @chicoryai/platform
+/scripts/ @chicoryai/platform
+
+# Documentation
+/docs/ @chicoryai/engineering
+/README.md @chicoryai/engineering
+/CONTRIBUTING.md @chicoryai/engineering

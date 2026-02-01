@@ -1,0 +1,143 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  Chicory - Customer cross-account IAM role for AWS S3 integration.
+  Supports ReadOnly and ReadWrite access levels with ExternalId safeguard.
+
+Parameters:
+  ChicoryAccountId:
+    Type: String
+    Description: Chicory AWS Account ID that will assume this role.
+  ExternalId:
+    Type: String
+    Description: External ID provided by Chicory for this project. Example chicory-<project-uuid>.
+  RoleName:
+    Type: String
+    Default: S3AccessRoleForChicory
+    Description: IAM role name to create.
+  AccessLevel:
+    Type: String
+    AllowedValues:
+      - ReadOnly
+      - ReadWrite
+    Default: ReadOnly
+    Description: S3 access level granted to Chicory.
+  ResourceArns:
+    Type: CommaDelimitedList
+    Default: "arn:aws:s3:::*"
+    Description: Comma-separated S3 bucket ARNs to scope permissions. Keep defaults for all S3 buckets.
+
+Conditions:
+  IsReadOnly: !Equals [!Ref AccessLevel, "ReadOnly"]
+  IsReadWrite: !Equals [!Ref AccessLevel, "ReadWrite"]
+
+Resources:
+  ChicoryS3AccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      Description: >
+        Cross-account IAM role granting Chicory AWS S3 access with ExternalId safeguard.
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${ChicoryAccountId}:root
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Ref ExternalId
+      Tags:
+        - Key: Vendor
+          Value: Chicory
+        - Key: ExternalId
+          Value: !Ref ExternalId
+
+  ChicoryS3ReadOnlyPolicy:
+    Condition: IsReadOnly
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: ChicoryS3ReadOnly
+      Roles:
+        - !Ref ChicoryS3AccessRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: S3BucketReadAccess
+            Effect: Allow
+            Action:
+              - s3:ListBucket
+              - s3:GetBucketLocation
+              - s3:GetBucketVersioning
+              - s3:GetBucketTagging
+              - s3:GetBucketPolicy
+              - s3:ListAllMyBuckets
+            Resource: !Ref ResourceArns
+          - Sid: S3ObjectReadAccess
+            Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:GetObjectTagging
+            Resource: !Sub
+              - "${BucketArn}/*"
+              - BucketArn: !Select [0, !Ref ResourceArns]
+
+  ChicoryS3ReadWritePolicy:
+    Condition: IsReadWrite
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: ChicoryS3ReadWrite
+      Roles:
+        - !Ref ChicoryS3AccessRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: S3BucketReadAccess
+            Effect: Allow
+            Action:
+              - s3:ListBucket
+              - s3:GetBucketLocation
+              - s3:GetBucketVersioning
+              - s3:GetBucketTagging
+              - s3:GetBucketPolicy
+              - s3:ListAllMyBuckets
+            Resource: !Ref ResourceArns
+          - Sid: S3ObjectReadAccess
+            Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:GetObjectVersion
+              - s3:GetObjectTagging
+            Resource: !Sub
+              - "${BucketArn}/*"
+              - BucketArn: !Select [0, !Ref ResourceArns]
+          - Sid: S3WriteAccess
+            Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:PutObjectTagging
+              - s3:DeleteObject
+              - s3:DeleteObjectVersion
+              - s3:CreateBucket
+              - s3:DeleteBucket
+              - s3:PutBucketTagging
+            Resource: !Ref ResourceArns
+          - Sid: S3ObjectWriteAccess
+            Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:PutObjectTagging
+              - s3:DeleteObject
+              - s3:DeleteObjectVersion
+            Resource: !Sub
+              - "${BucketArn}/*"
+              - BucketArn: !Select [0, !Ref ResourceArns]
+
+Outputs:
+  RoleArn:
+    Description: ARN of the created Chicory S3 cross-account role
+    Value: !GetAtt ChicoryS3AccessRole.Arn
+  AccessLevelSelected:
+    Description: Access level granted by this deployment
+    Value: !Ref AccessLevel

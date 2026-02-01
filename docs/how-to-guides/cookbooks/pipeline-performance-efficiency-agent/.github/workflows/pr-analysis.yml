@@ -1,0 +1,308 @@
+# .github/workflows/pr-analysis.yml
+name: Pipeline Analysis with Chicory AI
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull Request Number'
+        required: true
+        type: string
+      path_filter:
+        description: 'Path filter (e.g., "models/" or "src/")'
+        required: false
+        default: '**/*.sql'
+        type: string
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  DEFAULT_PATH_FILTER: '**/*.sql'
+
+jobs:
+  analyze-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for diff
+
+    - name: Install dependencies
+      run: |
+        # We'll use curl and jq which are already available in ubuntu-latest
+        echo "Using curl and jq for API calls"
+
+    - name: Get PR diff
+      id: get-diff
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        # Determine path filter
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          PATH_FILTER="${{ github.event.inputs.path_filter }}"
+          PR_NUMBER="${{ github.event.inputs.pr_number }}"
+          echo "DEBUG: Manual trigger for PR #$PR_NUMBER with path filter: $PATH_FILTER"
+          
+          # Get PR info using GitHub CLI
+          gh pr view $PR_NUMBER --json baseRefName,headRefName,title > pr_info.json
+          BASE_REF=$(jq -r '.baseRefName' pr_info.json)
+          HEAD_REF=$(jq -r '.headRefName' pr_info.json)
+          PR_TITLE=$(jq -r '.title' pr_info.json)
+          
+          echo "DEBUG: Base ref: $BASE_REF"
+          echo "DEBUG: Head ref: $HEAD_REF"
+          echo "DEBUG: PR title: $PR_TITLE"
+          
+          # Store PR info for later use
+          echo "PR_TITLE=$PR_TITLE" >> $GITHUB_ENV
+          echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+          
+          # Get the diff for the specific PR with path filter
+          git diff origin/$BASE_REF...origin/$HEAD_REF -- "$PATH_FILTER" > pr_diff.txt
+        else
+          PATH_FILTER="${{ env.DEFAULT_PATH_FILTER }}"
+          PR_NUMBER="${{ github.event.number }}"
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          
+          echo "DEBUG: PR trigger with default path filter: $PATH_FILTER"
+          echo "DEBUG: Base ref: ${{ github.base_ref }}"
+          echo "DEBUG: Head ref: ${{ github.head_ref }}"
+          echo "DEBUG: PR number: $PR_NUMBER"
+          echo "DEBUG: PR title: $PR_TITLE"
+          echo "DEBUG: Getting diff between origin/${{ github.base_ref }} and origin/${{ github.head_ref }} for path: $PATH_FILTER"
+          
+          # Store PR info for later use
+          echo "PR_TITLE=$PR_TITLE" >> $GITHUB_ENV
+          echo "PR_NUMBER=$PR_NUMBER" >> $GITHUB_ENV
+          
+          # Get the diff between base and head with path filter
+          git diff origin/${{ github.base_ref }}...origin/${{ github.head_ref }} -- "$PATH_FILTER" > pr_diff.txt
+        fi
+        
+        echo "DEBUG: Path filter applied: $PATH_FILTER"
+        echo "DEBUG: Diff file size: $(wc -c < pr_diff.txt) bytes"
+        echo "DEBUG: Diff line count: $(wc -l < pr_diff.txt) lines"
+        
+        # Check if there are any changes in the filtered path
+        if [ ! -s pr_diff.txt ]; then
+          echo "DEBUG: No changes found in path: $PATH_FILTER"
+          echo "No changes detected in the specified path ($PATH_FILTER) for this pull request." > pr_diff.txt
+        else
+          echo "DEBUG: Changes found in path: $PATH_FILTER"
+          echo "DEBUG: Files changed in $PATH_FILTER:"
+          git diff origin/${{ github.base_ref }}...origin/${{ github.head_ref }} --name-only -- "$PATH_FILTER" || echo "No files changed"
+        fi
+        
+        echo "DEBUG: All lines of filtered diff:"
+        cat pr_diff.txt || echo "No diff content"
+        
+        # Store diff content (escape for JSON) - using filtered diff lines
+        echo "diff<<EOF" >> $GITHUB_OUTPUT
+        cat pr_diff.txt >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Run AI analysis
+      id: ai-analysis
+      env:
+        CHICORY_TOKEN: ${{ secrets.CHICORY_API_TOKEN }}
+        CHICORY_AGENT_ID: ${{ secrets.CHICORY_AGENT_ID }}
+        PR_TITLE: ${{ github.event.pull_request.title }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        # Read the PR diff
+        DIFF_CONTENT=$(cat pr_diff.txt)
+        
+        if [ -z "$DIFF_CONTENT" ]; then
+          echo "No changes found in PR"
+          echo "No changes detected in this pull request." > analysis_result.txt
+          exit 0
+        fi
+        
+        echo "DEBUG: Processing $(wc -l < pr_diff.txt) diff lines"
+        
+        # Check if token exists
+        if [ -z "$CHICORY_TOKEN" ]; then
+          echo "Error: CHICORY_TOKEN not found in secrets"
+          echo "Error: Missing API token" > analysis_result.txt
+          exit 1
+        fi
+        
+        echo "DEBUG: Token starts with: ${CHICORY_TOKEN:0:20}..."
+        
+        # Create the JSON payload
+        CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")
+        
+        # Escape the diff content for JSON
+        ESCAPED_DIFF=$(echo "$DIFF_CONTENT" | jq -Rs .)
+
+        CONTENT=$(cat <<EOF
+        Please review the PR diff with a focus on model and transformation efficiency.
+
+        Context:
+        - Airflow: use for DAG/orchestration structure and lineage insights
+        - dbt: use for pipeline and SQL transformation details
+        - GitHub: use for model code repository
+
+        Your task:
+        1. Scan the code changes and identify inefficient patterns.
+        2. Predict the performance impact of these changes before merge (e.g., runtime, scalability).
+        3. Pinpoint specific bottlenecks that could make the pipeline run slower.
+        4. Recommend targeted code improvements to fix the identified inefficiencies.
+        5. Provide detailed analysis for all models/queries, separately, in the proposed changes.
+
+        Note:
+        - Always use tools to fetch metrics.
+        - Leverage Airflow / dbt for run-time data, for comparative analysis. Mainly, past pipeline run times.
+        - Leverage Github context for query/pipeline (in-production) details.
+
+        ===
+
+        EOF
+        )
+
+        # Create payload with proper escaping and custom prompt
+        PAYLOAD=$(jq -n \
+          --arg agent_name "$CHICORY_AGENT_ID" \
+          --arg content "$CONTENT \\n\\n GitHub '$PR_TITLE' #$PR_NUMBER. \\n\\n === \\n\\n $DIFF_CONTENT" \
+          --arg created_at "$CURRENT_TIME" \
+          '{
+            "agent_name": $agent_name,
+            "input": [
+              {
+                "parts": [
+                  {
+                    "content_type": "text/plain",
+                    "content": $content
+                  }
+                ],
+                "created_at": $created_at
+              }
+            ]
+          }')
+        
+        echo "DEBUG: Payload created"
+        echo "DEBUG: Making async request to create run"
+        
+        # Create async run
+        CREATE_RESPONSE=$(curl -s -X POST https://app.chicory.ai/api/v1/runs \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer $CHICORY_TOKEN" \
+          -d "$PAYLOAD")
+        
+        echo "DEBUG: Create response: $CREATE_RESPONSE"
+        
+        # Extract run_id
+        RUN_ID=$(echo "$CREATE_RESPONSE" | jq -r '.run_id')
+        
+        if [ "$RUN_ID" = "null" ] || [ -z "$RUN_ID" ]; then
+          echo "Error: Failed to create run"
+          echo "Error response: $CREATE_RESPONSE"
+          echo "Failed to create AI analysis run" > analysis_result.txt
+          exit 1
+        fi
+        
+        echo "DEBUG: Created run with ID: $RUN_ID"
+        
+        # Poll for completion
+        MAX_ATTEMPTS=60  # 5 minutes with 5-second intervals
+        ATTEMPT=0
+        
+        while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+          echo "DEBUG: Polling attempt $((ATTEMPT + 1))/$MAX_ATTEMPTS"
+          
+          STATUS_RESPONSE=$(curl -s -X GET https://app.chicory.ai/api/v1/runs/$RUN_ID \
+            -H "Authorization: Bearer $CHICORY_TOKEN")
+          
+          echo "DEBUG: Status response: $STATUS_RESPONSE"
+          
+          STATUS=$(echo "$STATUS_RESPONSE" | jq -r '.status')
+          echo "DEBUG: Current status: $STATUS"
+          
+          if [ "$STATUS" = "completed" ]; then
+            echo "DEBUG: Run completed successfully!"
+            
+            # Extract the output content
+            OUTPUT=$(echo "$STATUS_RESPONSE" | jq -r '.output[0].parts[0].content')
+            
+            if [ "$OUTPUT" != "null" ] && [ -n "$OUTPUT" ]; then
+              # Try to parse as JSON first (in case it's structured)
+              if echo "$OUTPUT" | jq . > /dev/null 2>&1; then
+                # It's valid JSON, extract the response field if it exists
+                RESPONSE_TEXT=$(echo "$OUTPUT" | jq -r '.response // .')
+                echo "$RESPONSE_TEXT" > analysis_result.txt
+              else
+                # It's plain text
+                echo "$OUTPUT" > analysis_result.txt
+              fi
+            else
+              echo "Analysis completed but no output received" > analysis_result.txt
+            fi
+            
+            echo "DEBUG: Analysis completed successfully"
+            exit 0
+            
+          elif [ "$STATUS" = "failed" ] || [ "$STATUS" = "error" ]; then
+            echo "DEBUG: Run failed with status: $STATUS"
+            echo "Run failed with status: $STATUS" > analysis_result.txt
+            exit 1
+            
+          elif [ "$STATUS" = "in-progress" ] || [ "$STATUS" = "created" ]; then
+            echo "DEBUG: Run still in progress, waiting..."
+            sleep 5
+            ATTEMPT=$((ATTEMPT + 1))
+            
+          else
+            echo "DEBUG: Unknown status: $STATUS"
+            sleep 5
+            ATTEMPT=$((ATTEMPT + 1))
+          fi
+        done
+        
+        # If we get here, we timed out
+        echo "DEBUG: Timed out waiting for completion"
+        echo "Analysis timed out after 5 minutes" > analysis_result.txt
+
+    - name: Post comment on PR
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          // Read analysis result
+          let analysisResult;
+          try {
+            analysisResult = fs.readFileSync('analysis_result.txt', 'utf8');
+          } catch (error) {
+            analysisResult = 'Error: Could not read analysis result';
+          }
+          
+          // Format the comment
+          const comment = `## Code Performance Analysis
+          
+          ${analysisResult}
+          
+          ---
+          *This analysis was generated automatically by Chicory AI*`;
+          
+          // Get PR number based on trigger type
+          let prNumber;
+          if (context.eventName === 'workflow_dispatch') {
+            prNumber = parseInt(process.env.PR_NUMBER);
+          } else {
+            prNumber = context.issue.number;
+          }
+          
+          console.log(`Posting comment to PR #${prNumber}`);
+          
+          // Post comment on PR
+          await github.rest.issues.createComment({
+            issue_number: prNumber,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });

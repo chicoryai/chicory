@@ -1,0 +1,200 @@
+:root {
+  --radius: 0.5rem;
+  /* Purple/White theme with glass morphism base */
+  --background: oklch(1 0 0); /* pure white */
+  --foreground: oklch(0.145 0 0); /* dark gray-900 */
+  --card: oklch(0.9949 0.0037 264); /* whitePurple-50 #f2f2ff for cards */
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(0.9949 0.0037 264); /* whitePurple-50 */
+  --popover-foreground: oklch(0.145 0 0);
+  
+  /* Purple primary colors */
+  --primary: oklch(0.5819 0.1662 284.8369); /* #6C5CE7 purple-400 */
+  --primary-foreground: oklch(0.985 0 0); /* white */
+  
+  /* Lime secondary colors */
+  --secondary: oklch(0.8908 0.1628 105.2532); /* #D7E75C lime-400 */
+  --secondary-foreground: oklch(0.145 0 0); /* dark text */
+  
+  /* Muted colors with whitePurple tint */
+  --muted: oklch(0.9949 0.0037 264); /* whitePurple-50 #f2f2ff */
+  --muted-foreground: oklch(0.556 0 0); /* medium gray */
+  
+  /* Accent colors - purple variants */
+  --accent: oklch(0.7694 0.1262 284.5737); /* #ac93ff purple-100 */
+  --accent-foreground: oklch(0.145 0 0);
+  
+  /* Destructive/Error colors */
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  
+  /* Border and input - whitePurple tinted */
+  --border: oklch(0.9579 0.0148 264); /* whitePurple-100 #d9d9ff */
+  --input: oklch(0.9579 0.0148 264); /* whitePurple-100 border */
+  --ring: oklch(0.7694 0.1262 284.5737); /* purple-100 focus ring */
+  
+  /* Chart colors - purple and lime palette */
+  --chart-1: oklch(0.5819 0.1662 284.8369); /* purple-400 */
+  --chart-2: oklch(0.8908 0.1628 105.2532); /* lime-400 */
+  --chart-3: oklch(0.7694 0.1262 284.5737); /* purple-100 */
+  --chart-4: oklch(0.828 0.189 84.429); /* lime variant */
+  --chart-5: oklch(0.6819 0.1362 284.8369); /* purple-200 */
+  
+  /* Sidebar with glass effect base */
+  --sidebar: oklch(0.9949 0.0037 264); /* whitePurple-50 */
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.5819 0.1662 284.8369); /* purple-400 */
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.9949 0.0037 264); /* whitePurple-50 */
+  --sidebar-accent-foreground: oklch(0.145 0 0);
+  --sidebar-border: oklch(0.9579 0.0148 264); /* whitePurple-100 */
+  --sidebar-ring: oklch(0.7694 0.1262 284.5737); /* purple-100 */
+  
+  /* Glass morphism specific variables */
+  --glass-bg: oklch(1 0 0 / 0.25); /* white/25 as used in app */
+  --glass-border: oklch(0.9579 0.0148 264 / 0.5); /* whitePurple-100/50 */
+  --glass-shadow: oklch(0.9949 0.0037 264 / 0.5); /* whitePurple-50/50 */
+  --glass-blur: 12px;
+  --glass-backdrop-blur: 16px;
+  
+  /* Additional whitePurple variants for glass effects */
+  --white-purple-50: oklch(0.9949 0.0037 264); /* #f2f2ff */
+  --white-purple-100: oklch(0.9579 0.0148 264); /* #d9d9ff */
+  --white-purple-200: oklch(0.8849 0.0568 264); /* #a6a6ff */
+}
+
+.dark {
+  /* Dark mode with purple theme */
+  --background: oklch(0.145 0 0); /* gray-900 */
+  --foreground: oklch(0.985 0 0); /* white */
+  --card: oklch(0.9949 0.0037 264 / 0.05); /* whitePurple-50/5 as used in dark mode */
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.9949 0.0037 264 / 0.05); /* whitePurple-50/5 */
+  --popover-foreground: oklch(0.985 0 0);
+  
+  /* Purple primary in dark mode - brighter */
+  --primary: oklch(0.7694 0.1262 284.5737); /* #ac93ff purple-100 */
+  --primary-foreground: oklch(0.1450 0 0); /* dark background */
+  
+  /* Lime secondary in dark mode */
+  --secondary: oklch(0.7908 0.1228 105.2532); /* lighter lime */
+  --secondary-foreground: oklch(0.1450 0 0);
+  
+  /* Muted colors for dark mode */
+  --muted: oklch(0.269 0.01 280); /* dark purple gray */
+  --muted-foreground: oklch(0.708 0.02 280); /* light purple gray */
+  
+  /* Accent colors in dark */
+  --accent: oklch(0.5819 0.1662 284.8369); /* purple-400 */
+  --accent-foreground: oklch(0.985 0 0);
+  
+  /* Destructive in dark */
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.145 0 0);
+  
+  /* Borders and inputs - whitePurple themed for dark mode */
+  --border: oklch(0.8849 0.0568 264 / 0.3); /* whitePurple-200/30 */
+  --input: oklch(0.8849 0.0568 264 / 0.3); /* whitePurple-200/30 */
+  --ring: oklch(0.5819 0.1662 284.8369); /* purple-400 */
+  
+  /* Chart colors for dark mode */
+  --chart-1: oklch(0.7694 0.1262 284.5737); /* purple-100 */
+  --chart-2: oklch(0.7908 0.1228 105.2532); /* lime lighter */
+  --chart-3: oklch(0.5819 0.1662 284.8369); /* purple-400 */
+  --chart-4: oklch(0.728 0.159 94.429); /* lime variant */
+  --chart-5: oklch(0.8694 0.1062 284.5737); /* purple-50 */
+  
+  /* Dark sidebar with glass effect */
+  --sidebar: oklch(0.9949 0.0037 264 / 0.05); /* whitePurple-50/5 */
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.7694 0.1262 284.5737); /* purple-100 */
+  --sidebar-primary-foreground: oklch(0.145 0 0);
+  --sidebar-accent: oklch(0.9949 0.0037 264 / 0.05); /* whitePurple-50/5 */
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.8849 0.0568 264 / 0.3); /* whitePurple-200/30 */
+  --sidebar-ring: oklch(0.5819 0.1662 284.8369); /* purple-400 */
+  
+  /* Dark glass morphism variables */
+  --glass-bg: oklch(0.9949 0.0037 264 / 0.05); /* whitePurple-50/5 */
+  --glass-border: oklch(0.8849 0.0568 264 / 0.3); /* whitePurple-200/30 */
+  --glass-shadow: oklch(0.443 0.058 284 / 0.2); /* purple-900/20 shadow */
+  --glass-blur: 16px;
+  --glass-backdrop-blur: 24px;
+  
+  /* Additional whitePurple variants for dark mode */
+  --white-purple-50: oklch(0.9949 0.0037 264); /* #f2f2ff */
+  --white-purple-100: oklch(0.9579 0.0148 264); /* #d9d9ff */
+  --white-purple-200: oklch(0.8849 0.0568 264); /* #a6a6ff */
+}
+
+/* Glass morphism utility classes */
+@layer utilities {
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 8px 32px var(--glass-shadow);
+  }
+  
+  .glass-card {
+    background: oklch(from var(--card) l c h / 0.25);
+    backdrop-filter: blur(var(--glass-backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--glass-backdrop-blur));
+    border: 1px solid oklch(from var(--border) l c h / 0.7);
+    box-shadow: 0 4px 16px oklch(from var(--primary) l c h / 0.1);
+  }
+  
+  .glass-panel {
+    background: radial-gradient(
+      circle at center, 
+      oklch(from var(--background) l c h / 0.9) 95%, 
+      oklch(from var(--primary) l c h / 0.1) 100%
+    );
+    border: 1px solid var(--border);
+    backdrop-filter: blur(var(--glass-backdrop-blur));
+    -webkit-backdrop-filter: blur(var(--glass-backdrop-blur));
+  }
+  
+  .glass-button {
+    background: oklch(from var(--background) l c h / 0.8);
+    border: 1px solid var(--border);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: all 0.3s ease;
+  }
+  
+  .glass-button:hover {
+    background: oklch(from var(--primary) l c h / 0.1);
+    border-color: var(--primary);
+    transform: translateY(-1px);
+  }
+  
+  .glass-input {
+    background: oklch(from var(--background) l c h / 0.5);
+    border: 1px solid var(--input);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  
+  .glass-input:focus {
+    border-color: var(--ring);
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 3px oklch(from var(--ring) l c h / 0.1);
+  }
+  
+  /* Blur utilities */
+  .blur-sm { backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+  .blur-md { backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .blur-lg { backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+  .blur-xl { backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
+  .blur-2xl { backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); }
+  
+  /* Glass opacity utilities */
+  .glass-opacity-5 { background: oklch(from var(--background) l c h / 0.05); }
+  .glass-opacity-10 { background: oklch(from var(--background) l c h / 0.1); }
+  .glass-opacity-15 { background: oklch(from var(--background) l c h / 0.15); }
+  .glass-opacity-20 { background: oklch(from var(--background) l c h / 0.2); }
+  .glass-opacity-25 { background: oklch(from var(--background) l c h / 0.25); }
+}

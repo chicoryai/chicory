@@ -1,0 +1,604 @@
+# Chicory CI/CD Pipeline
+#
+# This workflow serves two purposes:
+# 1. For ALL contributors: Run tests and verify builds
+# 2. For Chicory team only: Push to ECR on main merge
+#
+# Open source users never need to interact with this - they just run `make install`
+
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  # Python version for all Python services
+  PYTHON_VERSION: "3.12"
+  # Node version for webapp
+  NODE_VERSION: "20"
+  # ECR registry (only used on main branch)
+  ECR_REGISTRY: 070567846440.dkr.ecr.us-west-2.amazonaws.com
+
+# Cancel in-progress runs for the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ==========================================================================
+  # Change Detection - Determine what needs to be tested/built
+  # ==========================================================================
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend-api: ${{ steps.filter.outputs.backend-api }}
+      webapp: ${{ steps.filter.outputs.webapp }}
+      agent-service: ${{ steps.filter.outputs.agent-service }}
+      db-mcp-server: ${{ steps.filter.outputs.db-mcp-server }}
+      tools-mcp-server: ${{ steps.filter.outputs.tools-mcp-server }}
+      training-worker: ${{ steps.filter.outputs.training-worker }}
+      inference-worker: ${{ steps.filter.outputs.inference-worker }}
+      python-common: ${{ steps.filter.outputs.python-common }}
+      e2e: ${{ steps.filter.outputs.e2e }}
+      docker: ${{ steps.filter.outputs.docker }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend-api:
+              - 'services/backend-api/**'
+              - 'packages/python-common/**'
+            webapp:
+              - 'services/webapp/**'
+            agent-service:
+              - 'services/agent-service/**'
+              - 'packages/python-common/**'
+            db-mcp-server:
+              - 'services/db-mcp-server/**'
+              - 'packages/python-common/**'
+            tools-mcp-server:
+              - 'services/tools-mcp-server/**'
+              - 'packages/python-common/**'
+            training-worker:
+              - 'services/training-worker/**'
+              - 'packages/python-common/**'
+            inference-worker:
+              - 'services/inference-worker/**'
+              - 'packages/python-common/**'
+            python-common:
+              - 'packages/python-common/**'
+            e2e:
+              - 'e2e/**'
+            docker:
+              - 'docker-compose.yml'
+              - 'docker-compose.dev.yml'
+              - '**/Dockerfile'
+
+  # ==========================================================================
+  # Python Tests - Run for all Python services
+  # ==========================================================================
+  test-python-common:
+    name: Test Python Common
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.python-common == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          cd packages/python-common
+          pip install -e ".[dev]"
+
+      - name: Lint with ruff
+        run: |
+          cd packages/python-common
+          ruff check chicory_common
+
+      - name: Format check with black
+        run: |
+          cd packages/python-common
+          black --check chicory_common
+
+      - name: Type check with mypy
+        run: |
+          cd packages/python-common
+          mypy chicory_common
+
+      - name: Run tests
+        run: |
+          cd packages/python-common
+          pytest -v
+
+  test-backend-api:
+    name: Test Backend API
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.backend-api == 'true'
+    services:
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: chicory
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -e packages/python-common
+          cd services/backend-api
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov
+
+      - name: Lint with ruff
+        run: |
+          cd services/backend-api
+          pip install ruff
+          ruff check app
+
+      - name: Run tests
+        env:
+          MONGODB_URI: mongodb://admin:chicory@localhost:27017/chicory_test?authSource=admin
+          REDIS_URL: redis://localhost:6379
+          ANTHROPIC_API_KEY: test-key
+        run: |
+          cd services/backend-api
+          pytest -v --cov=app --cov-report=xml
+
+  test-agent-service:
+    name: Test Agent Service
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.agent-service == 'true'
+    services:
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: chicory
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"  # Agent service uses 3.11
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -e packages/python-common
+          cd services/agent-service
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov
+
+      - name: Lint with ruff
+        run: |
+          cd services/agent-service
+          pip install ruff
+          ruff check app
+
+      - name: Run tests
+        env:
+          MONGODB_URI: mongodb://admin:chicory@localhost:27017/chicory_test?authSource=admin
+          REDIS_URL: redis://localhost:6379
+          ANTHROPIC_API_KEY: test-key
+        run: |
+          cd services/agent-service
+          pytest -v --cov=app --cov-report=xml
+
+  test-db-mcp-server:
+    name: Test DB MCP Server
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.db-mcp-server == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -e packages/python-common
+          cd services/db-mcp-server
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio
+
+      - name: Run tests
+        run: |
+          cd services/db-mcp-server
+          pytest -v
+
+  test-tools-mcp-server:
+    name: Test Tools MCP Server
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.tools-mcp-server == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -e packages/python-common
+          cd services/tools-mcp-server
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio
+
+      - name: Run tests
+        run: |
+          cd services/tools-mcp-server
+          pytest -v
+
+  test-training-worker:
+    name: Test Training Worker
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.training-worker == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -e packages/python-common
+          cd services/training-worker
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio
+
+      - name: Run tests
+        run: |
+          cd services/training-worker
+          pytest -v
+
+  test-inference-worker:
+    name: Test Inference Worker
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.inference-worker == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -e packages/python-common
+          cd services/inference-worker
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio
+
+      - name: Run tests
+        run: |
+          cd services/inference-worker
+          pytest -v
+
+  # ==========================================================================
+  # Webapp Tests - TypeScript/React
+  # ==========================================================================
+  test-webapp:
+    name: Test Webapp
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.webapp == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+          cache-dependency-path: services/webapp/yarn.lock
+
+      - name: Install dependencies
+        run: |
+          cd services/webapp
+          yarn install --frozen-lockfile
+
+      - name: Lint
+        run: |
+          cd services/webapp
+          yarn lint
+
+      - name: Type check
+        run: |
+          cd services/webapp
+          yarn typecheck
+
+      - name: Run tests
+        run: |
+          cd services/webapp
+          yarn test
+
+  # ==========================================================================
+  # Docker Build Verification - Ensure all images build
+  # ==========================================================================
+  build-verify:
+    name: Verify Docker Builds
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.docker == 'true' || needs.changes.outputs.backend-api == 'true' || needs.changes.outputs.webapp == 'true' || needs.changes.outputs.agent-service == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Backend API
+        if: needs.changes.outputs.backend-api == 'true' || needs.changes.outputs.docker == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/backend-api/Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Webapp
+        if: needs.changes.outputs.webapp == 'true' || needs.changes.outputs.docker == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/webapp/Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Agent Service
+        if: needs.changes.outputs.agent-service == 'true' || needs.changes.outputs.docker == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/agent-service/Dockerfile
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ==========================================================================
+  # E2E Tests - Run on PRs that affect critical paths
+  # ==========================================================================
+  test-e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [changes, test-backend-api, test-webapp]
+    if: |
+      always() &&
+      needs.changes.outputs.e2e == 'true' &&
+      (needs.test-backend-api.result == 'success' || needs.test-backend-api.result == 'skipped') &&
+      (needs.test-webapp.result == 'success' || needs.test-webapp.result == 'skipped')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          cd e2e
+          npm ci
+
+      - name: Install Playwright browsers
+        run: |
+          cd e2e
+          npx playwright install --with-deps
+
+      - name: Start services
+        run: |
+          cp .env.example .env
+          echo "ANTHROPIC_API_KEY=test-key" >> .env
+          docker compose up -d
+          # Wait for services to be healthy
+          ./scripts/health-check.sh || true
+
+      - name: Run E2E tests
+        run: |
+          cd e2e
+          npx playwright test
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report
+          retention-days: 7
+
+  # ==========================================================================
+  # Push to ECR - Only on main branch (Chicory team only)
+  # ==========================================================================
+  push-to-ecr:
+    name: Push to ECR
+    runs-on: ubuntu-latest
+    needs: [test-python-common, test-backend-api, test-webapp, test-agent-service, build-verify]
+    if: |
+      always() &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      (needs.test-python-common.result == 'success' || needs.test-python-common.result == 'skipped') &&
+      (needs.test-backend-api.result == 'success' || needs.test-backend-api.result == 'skipped') &&
+      (needs.test-webapp.result == 'success' || needs.test-webapp.result == 'skipped') &&
+      (needs.test-agent-service.result == 'success' || needs.test-agent-service.result == 'skipped') &&
+      (needs.build-verify.result == 'success' || needs.build-verify.result == 'skipped')
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-west-2
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Backend API
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/backend-api/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/chicory/backend-api:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/chicory/backend-api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Webapp
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/webapp/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/chicory/webapp:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/chicory/webapp:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Agent Service
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/agent-service/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/chicory/agent-service:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/chicory/agent-service:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push DB MCP Server
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/db-mcp-server/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/chicory/db-mcp-server:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/chicory/db-mcp-server:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Tools MCP Server
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/tools-mcp-server/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/chicory/tools-mcp-server:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/chicory/tools-mcp-server:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Training Worker
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/training-worker/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/chicory/training-worker:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/chicory/training-worker:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push Inference Worker
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: services/inference-worker/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/chicory/inference-worker:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/chicory/inference-worker:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ==========================================================================
+  # Deployment Trigger - Notify chicory-infra (Chicory team only)
+  # ==========================================================================
+  trigger-deployment:
+    name: Trigger Deployment
+    runs-on: ubuntu-latest
+    needs: push-to-ecr
+    if: success()
+    steps:
+      - name: Trigger deployment workflow
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.INFRA_DISPATCH_TOKEN }}
+          repository: chicoryai/chicory-infra
+          event-type: deploy
+          client-payload: |
+            {
+              "ref": "${{ github.sha }}",
+              "images": {
+                "backend-api": "${{ env.ECR_REGISTRY }}/chicory/backend-api:${{ github.sha }}",
+                "webapp": "${{ env.ECR_REGISTRY }}/chicory/webapp:${{ github.sha }}",
+                "agent-service": "${{ env.ECR_REGISTRY }}/chicory/agent-service:${{ github.sha }}",
+                "db-mcp-server": "${{ env.ECR_REGISTRY }}/chicory/db-mcp-server:${{ github.sha }}",
+                "tools-mcp-server": "${{ env.ECR_REGISTRY }}/chicory/tools-mcp-server:${{ github.sha }}",
+                "training-worker": "${{ env.ECR_REGISTRY }}/chicory/training-worker:${{ github.sha }}",
+                "inference-worker": "${{ env.ECR_REGISTRY }}/chicory/inference-worker:${{ github.sha }}"
+              }
+            }

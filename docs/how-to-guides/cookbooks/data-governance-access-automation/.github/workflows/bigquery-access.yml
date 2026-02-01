@@ -1,0 +1,648 @@
+# .github/workflows/bigquery-access.yml
+name: BigQuery Access Request Analysis
+
+# Triggers when JIRA sends repository_dispatch events
+on:
+  repository_dispatch:
+    types: [bigquery_access_request]
+  workflow_dispatch:  # Allows manual testing
+    inputs:
+      ticket_id:
+        description: 'JIRA Ticket ID for testing'
+        required: true
+        type: string
+
+# Environment variables for the entire workflow
+env:
+  CHICORY_TOKEN: ${{ secrets.CHICORY_API_TOKEN }}
+  CHICORY_AGENT_ID: ${{ secrets.CHICORY_AGENT_ID }}
+
+jobs:
+  process-access-request:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write      # Needed to create branches and commit files
+      pull-requests: write # Needed to create pull requests
+    
+    steps:
+    # Step 1: Get the source code so we can create branches and commit files
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0  # Get full git history for branching
+
+    # Step 2: Extract and validate the JIRA ticket data from the webhook
+    - name: Extract JIRA ticket information
+      id: extract-ticket
+      run: |
+          # Extract data from repository_dispatch payload
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            TICKET_ID=$(echo '${{ toJson(github.event.client_payload) }}' | jq -r '.ticket_id // ""')
+            SUMMARY=$(echo '${{ toJson(github.event.client_payload) }}' | jq -r '.summary // ""')
+            DESCRIPTION=$(echo '${{ toJson(github.event.client_payload) }}' | jq -r '.description // ""')
+            REPORTER=$(echo '${{ toJson(github.event.client_payload) }}' | jq -r '.reporter // ""')
+          else
+            # Manual testing mode
+            TICKET_ID="${{ github.event.inputs.ticket_id }}"
+            SUMMARY="Manual Test - BigQuery Access"
+            DESCRIPTION="Testing workflow manually"
+            REPORTER="test@company.com"
+          fi
+          
+          # Validate required fields
+          if [ -z "$TICKET_ID" ]; then
+            echo "❌ Error: No ticket ID provided"
+            exit 1
+          fi
+          
+          # Store ticket info in environment for other steps
+          echo "TICKET_ID=$TICKET_ID" >> $GITHUB_ENV
+          echo "SUMMARY=$SUMMARY" >> $GITHUB_ENV  
+          echo "DESCRIPTION=$DESCRIPTION" >> $GITHUB_ENV
+          echo "REPORTER=$REPORTER" >> $GITHUB_ENV
+          
+          # Create safe branch name
+          BRANCH_NAME="bigquery-analysis/${TICKET_ID}-$(date +%s)"
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+          
+          echo "✅ Extracted ticket: $TICKET_ID"
+          echo "📋 Summary: $SUMMARY"
+          echo "👤 Requester: $REPORTER"
+
+    # Step 3: Send ticket data to your Chicory AI agent for analysis
+    - name: Call Chicory AI agent for analysis
+      id: ai-analysis
+      run: |
+        echo "🤖 Sending ticket to Chicory AI agent for analysis"
+        
+        # Validate that we have agent credentials
+        if [ -z "$CHICORY_TOKEN" ] || [ -z "$CHICORY_AGENT_ID" ]; then
+          echo "❌ Error: Missing Chicory AI credentials in repository secrets"
+          exit 1
+        fi
+        
+        # Prepare the ticket data payload for the agent
+        # Note: Only passing raw ticket data, not a specific prompt
+        CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S.%3NZ")
+        
+        # Create JSON payload with ticket information
+        TICKET_DATA=$(cat << EOF
+        {
+          "ticket_id": "$TICKET_ID",
+          "summary": "$SUMMARY", 
+          "description": "$DESCRIPTION",
+          "reporter": "$REPORTER",
+          "timestamp": "$CURRENT_TIME"
+        }
+        EOF
+        )
+        
+        # Create the agent request payload
+        PAYLOAD=$(jq -n \
+          --arg agent_name "$CHICORY_AGENT_ID" \
+          --arg ticket_data "$TICKET_DATA" \
+          --arg created_at "$CURRENT_TIME" \
+          '{
+            "agent_name": $agent_name,
+            "input": [
+              {
+                "parts": [
+                  {
+                    "content_type": "application/json",
+                    "content": $ticket_data
+                  }
+                ],
+                "created_at": $created_at
+              }
+            ]
+          }')
+        
+        echo "📤 Making request to Chicory AI..."
+        
+        # Create async run with your agent
+        CREATE_RESPONSE=$(curl -s -X POST https://app.chicory.ai/api/v1/runs \
+          -H "Content-Type: application/json" \
+          -H "Authorization: Bearer $CHICORY_TOKEN" \
+          -d "$PAYLOAD")
+        
+        echo "📥 Agent response: $CREATE_RESPONSE"
+        
+        # Extract run_id from response
+        RUN_ID=$(echo "$CREATE_RESPONSE" | jq -r '.run_id')
+        
+        if [ "$RUN_ID" = "null" ] || [ -z "$RUN_ID" ]; then
+          echo "❌ Error: Failed to create agent run"
+          echo "Response: $CREATE_RESPONSE"
+          exit 1
+        fi
+        
+        echo "🔄 Created agent run with ID: $RUN_ID"
+        echo "⏳ Waiting for agent to complete analysis (up to 5 minutes)..."
+        
+        # Poll for completion - agent takes about 5 minutes
+        MAX_ATTEMPTS=60  # 5 minutes with 5-second intervals
+        ATTEMPT=0
+        
+        while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+          echo "🔍 Polling attempt $((ATTEMPT + 1))/$MAX_ATTEMPTS"
+          
+          # Check run status
+          STATUS_RESPONSE=$(curl -s -X GET https://app.chicory.ai/api/v1/runs/$RUN_ID \
+            -H "Authorization: Bearer $CHICORY_TOKEN")
+          
+          STATUS=$(echo "$STATUS_RESPONSE" | jq -r '.status')
+          echo "📊 Current status: $STATUS"
+          
+          if [ "$STATUS" = "completed" ]; then
+            echo "✅ Agent analysis completed successfully!"
+            
+            # Extract the agent's output
+            OUTPUT=$(echo "$STATUS_RESPONSE" | jq -r '.output[0].parts[0].content')
+            
+            if [ "$OUTPUT" != "null" ] && [ -n "$OUTPUT" ]; then
+              # Save agent results for next step
+              echo "$OUTPUT" > agent_result.json
+              echo "💾 Agent results saved to agent_result.json"
+              break
+            else
+              echo "❌ Error: Agent completed but returned no output"
+              exit 1
+            fi
+            
+          elif [ "$STATUS" = "failed" ] || [ "$STATUS" = "error" ]; then
+            echo "❌ Error: Agent run failed with status: $STATUS"
+            exit 1
+            
+          else
+            # Still running, wait and try again
+            sleep 5
+            ATTEMPT=$((ATTEMPT + 1))
+          fi
+        done
+        
+        # Check if we timed out
+        if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+          echo "❌ Error: Agent analysis timed out after 5 minutes"
+          exit 1
+        fi
+
+    # Step 4: Process agent results and extract policy analysis + Terraform
+    - name: Process agent analysis results
+      id: process-analysis
+      run: |
+        echo "🔧 Processing agent results"
+        
+          # Validate that agent results exist
+          if [ ! -f agent_result.json ]; then
+            echo "❌ Error: No agent results found"
+            exit 1
+          fi
+          
+          # Validate JSON input
+          if ! jq empty agent_result.json 2>/dev/null; then
+            echo "❌ Error: Invalid JSON response from agent"
+            exit 1
+          fi
+          
+          # Extract the response field to a file
+          if jq -e '.response' agent_result.json >/dev/null 2>&1; then
+            jq -r '.response' agent_result.json > response_content.txt
+          else
+            jq -r '.' agent_result.json > response_content.txt
+          fi
+            
+          # Check if response contains markdown code blocks
+          if grep -q '```json' response_content.txt; then
+            # Extract JSON content between ```json and ``` markers to file
+            sed -n '/```json/,/```/p' response_content.txt | sed '1d;$d' > raw_extracted.txt
+            
+            # Clean the JSON - check for and remove "json\n" prefix
+            cp raw_extracted.txt temp_for_cleaning.txt
+            
+            # Check if first line is just "json"
+            FIRST_LINE=$(head -n 1 temp_for_cleaning.txt)
+            if [ "$FIRST_LINE" = "json" ]; then
+              tail -n +2 temp_for_cleaning.txt > cleaned_without_prefix.txt
+              mv cleaned_without_prefix.txt temp_for_cleaning.txt
+            fi
+            
+            # Remove leading/trailing whitespace and save as final cleaned JSON
+            sed 's/^[[:space:]]*//' temp_for_cleaning.txt | sed 's/[[:space:]]*$//' > cleaned_agent_result.json
+          else
+            cp response_content.txt cleaned_agent_result.json
+          fi
+          
+          AGENT_DATA="cleaned_agent_result.json"
+          
+          # Validate the cleaned JSON
+          if ! jq empty "$AGENT_DATA" 2>/dev/null; then
+            # Try to fix truncated JSON by adding missing braces
+            TEMP_JSON=$(cat "$AGENT_DATA")
+            OPEN_BRACES=$(echo "$TEMP_JSON" | grep -o '{' | wc -l)
+            CLOSE_BRACES=$(echo "$TEMP_JSON" | grep -o '}' | wc -l)
+            OPEN_BRACKETS=$(echo "$TEMP_JSON" | grep -o '\[' | wc -l)
+            CLOSE_BRACKETS=$(echo "$TEMP_JSON" | grep -o '\]' | wc -l)
+            
+            # Add missing closing braces/brackets
+            while [ $CLOSE_BRACES -lt $OPEN_BRACES ]; do
+              TEMP_JSON="$TEMP_JSON}"
+              CLOSE_BRACES=$((CLOSE_BRACES + 1))
+            done
+            
+            while [ $CLOSE_BRACKETS -lt $OPEN_BRACKETS ]; do
+              TEMP_JSON="$TEMP_JSON]"
+              CLOSE_BRACKETS=$((CLOSE_BRACKETS + 1))
+            done
+            
+            echo "$TEMP_JSON" > "$AGENT_DATA"
+            
+            # Test repaired JSON
+            if ! jq empty "$AGENT_DATA" 2>/dev/null; then
+              echo "❌ Could not repair JSON, using fallback values"
+            fi
+          fi
+          
+          # Extract analysis fields with proper error handling
+          if jq empty "$AGENT_DATA" 2>/dev/null; then
+            # Valid JSON - extract fields normally with fallbacks
+            VALIDATION_STATUS=$(jq -r '.validation_status // "unknown"' "$AGENT_DATA" 2>/dev/null || echo "unknown")
+            ACCESS_DECISION=$(jq -r '.access_decision // "UNKNOWN"' "$AGENT_DATA" 2>/dev/null || echo "UNKNOWN")
+            SECURITY_NOTES=$(jq -r '.security_notes // "No specific security notes"' "$AGENT_DATA" 2>/dev/null || echo "No specific security notes")
+            RECOMMENDATIONS=$(jq -r '.recommendations // "No specific recommendations"' "$AGENT_DATA" 2>/dev/null || echo "No specific recommendations")
+            DATASET=$(jq -r '.dataset // "unknown"' "$AGENT_DATA" 2>/dev/null || echo "unknown")
+            COLUMN=$(jq -r '.column // "unknown"' "$AGENT_DATA" 2>/dev/null || echo "unknown")
+            ACCESS_TYPE=$(jq -r '.access_type // "Read"' "$AGENT_DATA" 2>/dev/null || echo "Read")
+            POLICY_TAG=$(jq -r '.policy_analysis.policy_tag_id // "unknown"' "$AGENT_DATA" 2>/dev/null || echo "unknown")
+            SENSITIVITY_LEVEL=$(jq -r '.policy_analysis.sensitivity_level // "unknown"' "$AGENT_DATA" 2>/dev/null || echo "unknown")
+            REASONING=$(jq -r '.reasoning // "No reasoning provided"' "$AGENT_DATA" 2>/dev/null || echo "No reasoning provided")
+            APPROVAL_CONTACT=$(jq -r '.approval_contact // "null"' "$AGENT_DATA" 2>/dev/null || echo "null")
+            
+            # Extract Terraform configuration
+            TERRAFORM_CONFIG=$(jq -r '.terraform_config // ""' "$AGENT_DATA" 2>/dev/null || echo "")
+            
+            if [ -n "$TERRAFORM_CONFIG" ] && [ "$TERRAFORM_CONFIG" != "null" ] && [ "$TERRAFORM_CONFIG" != "" ]; then
+              # Create terraform directory structure
+              mkdir -p terraform/bigquery-access
+              
+              # Save the Terraform configuration to file
+              TERRAFORM_FILE="terraform/bigquery-access/${TICKET_ID}.tf"
+              echo "$TERRAFORM_CONFIG" > "$TERRAFORM_FILE"
+              
+              # Store terraform file path for later steps
+              echo "TERRAFORM_FILE=$TERRAFORM_FILE" >> $GITHUB_ENV
+              echo "HAS_TERRAFORM=true" >> $GITHUB_ENV
+            else
+              echo "HAS_TERRAFORM=false" >> $GITHUB_ENV
+            fi
+          else
+            # Fallback values for invalid JSON
+            VALIDATION_STATUS="failed"
+            ACCESS_DECISION="UNKNOWN"
+            SECURITY_NOTES="Unable to parse agent response"
+            RECOMMENDATIONS="Review agent output manually"
+            DATASET="unknown"
+            COLUMN="unknown"
+            ACCESS_TYPE="Read"
+            POLICY_TAG="unknown"
+            SENSITIVITY_LEVEL="unknown"
+            REASONING="Agent response parsing failed"
+            APPROVAL_CONTACT="null"
+            echo "HAS_TERRAFORM=false" >> $GITHUB_ENV
+          fi
+          
+          # Store results for next steps
+          echo "VALIDATION_STATUS=$VALIDATION_STATUS" >> $GITHUB_ENV
+          echo "ACCESS_DECISION=$ACCESS_DECISION" >> $GITHUB_ENV
+          echo "SECURITY_NOTES=$SECURITY_NOTES" >> $GITHUB_ENV
+          echo "RECOMMENDATIONS=$RECOMMENDATIONS" >> $GITHUB_ENV
+          echo "DATASET=$DATASET" >> $GITHUB_ENV
+          echo "COLUMN=$COLUMN" >> $GITHUB_ENV
+          echo "ACCESS_TYPE=$ACCESS_TYPE" >> $GITHUB_ENV
+          echo "POLICY_TAG=$POLICY_TAG" >> $GITHUB_ENV
+          echo "SENSITIVITY_LEVEL=$SENSITIVITY_LEVEL" >> $GITHUB_ENV
+          echo "REASONING=$REASONING" >> $GITHUB_ENV
+          echo "APPROVAL_CONTACT=$APPROVAL_CONTACT" >> $GITHUB_ENV
+          
+          echo "✅ Extracted: $ACCESS_DECISION for $DATASET.$COLUMN (Terraform: $HAS_TERRAFORM)"
+          
+    # Step 5: Create new branch for this access request
+    - name: Create feature branch
+      run: |
+        echo "🌿 Creating new branch: $BRANCH_NAME"
+        
+        # Configure git for commits
+        git config user.name "BigQuery Access Bot"
+        git config user.email "automation@company.com"
+        
+        # Create and switch to new branch
+        git checkout -b "$BRANCH_NAME"
+        echo "✅ Created branch: $BRANCH_NAME"
+
+    # Step 6: Generate documentation file
+    - name: Create documentation file
+      run: |
+        echo "📝 Creating documentation file"
+        
+        # Create docs directory structure
+        mkdir -p docs/access-requests
+        
+        # Generate documentation file
+        DOC_FILE="docs/access-requests/${TICKET_ID}.md"
+        
+        cat > "$DOC_FILE" << EOF
+        # BigQuery Access Request Analysis: $TICKET_ID
+        
+        ## Request Details
+        - **JIRA Ticket**: $TICKET_ID
+        - **Requester**: $REPORTER
+        - **Summary**: $SUMMARY
+        - **Dataset**: $DATASET
+        - **Column**: $COLUMN
+        - **Access Type**: $ACCESS_TYPE
+        - **Generated**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        
+        ## Analysis Results
+        - **Validation Status**: $VALIDATION_STATUS
+        - **Access Decision**: $ACCESS_DECISION
+        - **Policy Tag**: $POLICY_TAG
+        - **Sensitivity Level**: $SENSITIVITY_LEVEL
+        - **Approval Contact**: $APPROVAL_CONTACT
+        
+        ## Reasoning
+        $REASONING
+        
+        ## Security Notes
+        $SECURITY_NOTES
+        
+        ## Recommendations
+        $RECOMMENDATIONS
+        
+        ## JIRA Ticket Description
+        \`\`\`
+        $DESCRIPTION
+        \`\`\`
+        
+        ## Complete Agent Analysis
+        \`\`\`json
+        EOF
+        
+        # Safely append the agent results without shell interpretation
+        cat agent_result.json >> "$DOC_FILE"
+        
+        cat >> "$DOC_FILE" << 'EOF'
+        \`\`\`
+        EOF
+        
+        # Store file path for PR description
+        echo "DOC_FILE=$DOC_FILE" >> $GITHUB_ENV
+        
+        echo "✅ Generated documentation file: $DOC_FILE"
+
+    # Step 7: Commit changes to the branch 
+    - name: Commit changes
+      run: |
+        echo "💾 Committing changes to branch"
+        
+        # Add documentation file
+        git add docs/access-requests/${TICKET_ID}.md
+        echo "📄 Added documentation file to commit"
+        
+        # Add Terraform file if it exists
+        if [ "$HAS_TERRAFORM" = "true" ] && [ -f "$TERRAFORM_FILE" ]; then
+          git add "$TERRAFORM_FILE"
+          echo "🏗️ Added Terraform configuration to commit: $TERRAFORM_FILE"
+        else
+          echo "⚠️ No Terraform configuration to commit"
+        fi
+        
+        # Create comprehensive commit message
+        COMMIT_MESSAGE="Add BigQuery access analysis for $REPORTER - $TICKET_ID
+
+        Request Details:
+        - Dataset: $DATASET  
+        - Column: $COLUMN
+        - Access Type: $ACCESS_TYPE
+        - Access Decision: $ACCESS_DECISION
+        - Policy Tag: $POLICY_TAG
+        - Sensitivity: $SENSITIVITY_LEVEL
+        - JIRA Ticket: $TICKET_ID
+        - Validation: $VALIDATION_STATUS
+        
+        Files Added:
+        - Analysis Documentation: docs/access-requests/${TICKET_ID}.md"
+        
+        # Add Terraform info to commit message if present
+        if [ "$HAS_TERRAFORM" = "true" ]; then
+          COMMIT_MESSAGE="$COMMIT_MESSAGE
+        - Terraform Configuration: $TERRAFORM_FILE"
+        fi
+        
+        COMMIT_MESSAGE="$COMMIT_MESSAGE
+        
+        Generated by automated workflow from JIRA ticket."
+        
+        # Create the commit
+        git commit -m "$COMMIT_MESSAGE"
+        
+        # Push the branch to remote
+        git push origin "$BRANCH_NAME"
+        
+        echo "✅ Committed and pushed changes to $BRANCH_NAME"
+        
+        # Summary of what was committed
+        echo "📋 Committed files:"
+        echo "  📄 Documentation: docs/access-requests/${TICKET_ID}.md"
+        if [ "$HAS_TERRAFORM" = "true" ]; then
+          echo "  🏗️ Terraform: $TERRAFORM_FILE"
+        fi
+# Step 8: Create pull request with detailed information
+    - name: Create Pull Request
+      uses: actions/github-script@v7
+      with:
+        script: |
+          // Read agent results for PR description
+          const fs = require('fs');
+          let agentResults;
+          try {
+            agentResults = fs.readFileSync('agent_result.json', 'utf8');
+            // Escape backticks in the agent results for markdown display
+            agentResults = agentResults.replace(/`/g, '\\`');
+          } catch (error) {
+            agentResults = 'Error reading agent results';
+          }
+          
+          // Determine access status for display (keep the emoji logic for the body)
+          const accessEmoji = process.env.ACCESS_DECISION === 'ALLOWED' ? '✅' : '❌';
+          
+          // Create comprehensive PR description
+          const prBody = `## 🤖 AI Suggestion and Analysis - ${process.env.TICKET_ID}
+          
+          **📋 Request Summary**
+          - **JIRA Ticket**: [${process.env.TICKET_ID}](https://chicoryai.atlassian.net/browse/${process.env.TICKET_ID})
+          - **👤 Requester**: ${process.env.REPORTER}
+          - **📊 Dataset**: \`${process.env.DATASET}\`
+          - **📋 Column**: \`${process.env.COLUMN}\`
+          - **🔐 Access Type**: ${process.env.ACCESS_TYPE}
+          - **${accessEmoji} AI Recommendation**: **${process.env.ACCESS_DECISION}**
+          
+          **📝 Original Request**
+          > ${process.env.SUMMARY}
+          
+          ## 🔍 Policy Analysis Results
+          - **🏷️ Policy Tag**: \`${process.env.POLICY_TAG}\`
+          - **🔒 Sensitivity Level**: ${process.env.SENSITIVITY_LEVEL}
+          - **✅ Validation Status**: ${process.env.VALIDATION_STATUS}
+          - **👤 Approval Contact**: ${process.env.APPROVAL_CONTACT}
+          
+          ## 🧠 AI Reasoning
+          ${process.env.REASONING}
+          
+          ## 🛡️ Security Review
+          ${process.env.SECURITY_NOTES}
+          
+          ## 💡 Recommendations
+          ${process.env.RECOMMENDATIONS}
+          
+          ## 📁 Changes Made
+          - **Documentation**: \`${process.env.DOC_FILE}\`${process.env.HAS_TERRAFORM === 'true' ? `
+          - **Terraform Configuration**: \`${process.env.TERRAFORM_FILE}\`` : ''}
+          
+          ## 🚀 Decision Required
+          **AI Recommendation:** ${process.env.ACCESS_DECISION}
+          
+          **To approve this request:** Merge this pull request
+          **To deny this request:** Close this pull request without merging
+          
+          The AI analysis above provides the recommendation, but the final decision is yours.
+          
+          ## 🤖 AI Analysis Details
+          <details>
+          <summary>Click to view complete AI agent analysis</summary>
+          
+          \`\`\`json
+          ${agentResults}
+          \`\`\`
+          </details>
+          
+          ---
+          
+          *This PR was automatically generated by the BigQuery Access Analysis workflow*
+          *Triggered by JIRA ticket creation in the Data Access Requests project*
+          `;
+          
+          // Create the pull request with neutral title
+          const { data: pr } = await github.rest.pulls.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: `AI Analysis: BigQuery Access Request - ${process.env.REPORTER} - ${process.env.TICKET_ID}`,
+            head: process.env.BRANCH_NAME,
+            base: 'main',
+            body: prBody,
+            draft: false
+          });
+          
+          console.log(`✅ Created PR #${pr.number}: ${pr.html_url}`);
+          
+          // Add appropriate labels to the PR
+          const labels = [
+            'bigquery-access',
+            'automated',
+            `jira-${process.env.TICKET_ID}`,
+            `access-${process.env.ACCESS_TYPE.toLowerCase()}`,
+            `ai-recommendation-${process.env.ACCESS_DECISION.toLowerCase()}`,
+            `sensitivity-${process.env.SENSITIVITY_LEVEL.toLowerCase()}`
+          ];
+          
+          // Add neutral labels instead of decision-based ones
+          labels.push('needs-review', 'ai-analysis');
+          
+          // Add Terraform label if configuration was generated
+          if (process.env.HAS_TERRAFORM === 'true') {
+            labels.push('terraform', 'infrastructure');
+          }
+          
+          await github.rest.issues.addLabels({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: pr.number,
+            labels: labels
+          });
+          
+          // Request reviews from appropriate teams for all requests
+          try {
+            await github.rest.pulls.requestReviewers({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              team_reviewers: ['data-team', 'security-team']  // Adjust team names as needed
+            });
+          } catch (error) {
+            console.log('Note: Could not auto-assign reviewers (teams may not exist)');
+          }
+          
+          console.log(`🏷️ Added labels and processed PR #${pr.number}`);
+   
+    # Step 9: Update JIRA with AI decision
+    - name: Update JIRA ticket with AI decision
+      uses: actions/github-script@v7
+      with:
+        script: |
+          // Prepare JIRA credentials
+          const jiraBaseUrl = process.env.JIRA_BASE_URL || 'https://chicoryai.atlassian.net';
+          const jiraEmail = process.env.JIRA_EMAIL;
+          const jiraToken = process.env.JIRA_API_TOKEN;
+          
+          if (!jiraEmail || !jiraToken) {
+            console.log('JIRA credentials not configured, skipping JIRA update');
+            return;
+          }
+          
+          // Simple comment with AI decision only
+          const aiDecision = process.env.ACCESS_DECISION === 'ALLOWED' ? 'APPROVED' : 'DENIED';
+          
+          const commentBody = {
+            body: {
+              type: "doc",
+              version: 1,
+              content: [
+                {
+                  type: "paragraph",
+                  content: [
+                    {
+                      type: "text",
+                      text: `AI Decision: ${aiDecision}`
+                    }
+                  ]
+                }
+              ]
+            }
+          };
+        
+          try {
+            // Add comment to JIRA ticket
+            const response = await fetch(`${jiraBaseUrl}/rest/api/3/issue/${process.env.TICKET_ID}/comment`, {
+              method: 'POST',
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${Buffer.from(`${jiraEmail}:${jiraToken}`).toString('base64')}`
+              },
+              body: JSON.stringify(commentBody)
+            });
+            
+            if (response.ok) {
+              console.log('Successfully updated JIRA ticket with AI decision');
+            } else {
+              console.log(`Failed to update JIRA: ${response.status} ${response.statusText}`);
+            }
+          } catch (error) {
+            console.log(`Error updating JIRA: ${error.message}`);
+          }
+      env:
+        JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+        JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+        JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}                        
+                  
+
+    

@@ -1,0 +1,1473 @@
+openapi: 3.0.2
+info:
+  title: Chicory API
+  version: 1.0.0
+  description: API for a multi-tenant platform that enables users to connect data
+    sources, build business ontologies, and interact with data through a chat interface.
+servers:
+- url: https://api.chicory.ai/v1
+paths:
+  /projects:
+    get:
+      tags:
+        - projects
+      summary: List Projects
+      description: List all projects, optionally filtered by organization_id
+      operationId: list_projects_projects_get
+      parameters:
+        - name: organization_id
+          in: query
+          required: true
+          schema:
+            title: Organization Id
+            type: string
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectList'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+        - projects
+      summary: Create Project
+      description: Create a new project
+      operationId: create_project_projects_post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{project_id}:
+    get:
+      tags:
+        - projects
+      summary: Get Project
+      description: Get a project by ID
+      operationId: get_project_projects__project_id__get
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+        - projects
+      summary: Update Project
+      description: Update a project
+      operationId: update_project_projects__project_id__put
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProjectUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+        - projects
+      summary: Delete Project
+      description: Delete a project
+      operationId: delete_project_projects__project_id__delete
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+      responses:
+        '204':
+          description: Successful Response
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /data-source-types:
+    get:
+      tags:
+        - data_sources
+      summary: List Data Source Types
+      description: List all available data source types
+      operationId: list_data_source_types_data_source_types_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSourceTypeList'
+  /projects/{project_id}/data-sources:
+    get:
+      tags:
+        - data_sources
+      summary: List Data Sources
+      description: List all data sources connected to a project
+      operationId: list_data_sources_projects__project_id__data_sources_get
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSourceList'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+        - data_sources
+      summary: Create Data Source
+      description: Connect a data source to a project
+      operationId: create_data_source_projects__project_id__data_sources_post
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataSourceCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSourceResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{project_id}/data-sources/{data_source_id}/validate:
+    post:
+      tags:
+        - data_sources
+      summary: Validate Data Source
+      description: Test the connection to a data source
+      operationId: validate_data_source_projects__project_id__data_sources__data_source_id__validate_post
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+        - name: data_source_id
+          in: path
+          required: true
+          schema:
+            title: Data Source Id
+            type: string
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSourceValidationResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{project_id}/data-sources/{data_source_id}:
+    put:
+      tags:
+        - data_sources
+      summary: Update Data Source
+      description: Update an existing data source
+      operationId: update_data_source_projects__project_id__data_sources__data_source_id__put
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+        - name: data_source_id
+          in: path
+          required: true
+          schema:
+            title: Data Source Id
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataSourceUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSourceResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+        - data_sources
+      summary: Delete Data Source
+      description: |
+        Delete a data source and optionally its associated S3 object
+
+        Args:
+            project_id: ID of the project the data source belongs to
+            data_source_id: ID of the data source to delete
+            delete_s3_object: Whether to delete the associated S3 object (default: True)
+            force: Force deletion even if validation fails (default: False)
+      operationId: delete_data_source_projects__project_id__data_sources__data_source_id__delete
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+        - name: data_source_id
+          in: path
+          required: true
+          schema:
+            title: Data Source Id
+            type: string
+        - name: delete_s3_object
+          in: query
+          required: false
+          schema:
+            title: Delete S3 Object
+            type: boolean
+            default: true
+        - name: force
+          in: query
+          required: false
+          schema:
+            title: Force
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{project_id}/data-sources/csv-upload:
+    post:
+      tags:
+        - data_sources
+      summary: Upload Csv Data Source
+      description: Upload a CSV file as a data source and store it in S3
+      operationId: upload_csv_data_source_projects__project_id__data_sources_csv_upload_post
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_upload_csv_data_source_projects__project_id__data_sources_csv_upload_post'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSourceResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{project_id}/training:
+    get:
+      tags:
+        - training
+      summary: List Training Jobs
+      description: List all training jobs for a project
+      operationId: list_training_jobs_projects__project_id__training_get
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingList'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+        - training
+      summary: Create Training Job
+      description: Start a new training job for a project
+      operationId: create_training_job_projects__project_id__training_post
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrainingCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{project_id}/training/{training_id}:
+    get:
+      tags:
+        - training
+      summary: Get Training Job
+      description: Get the status of a training job
+      operationId: get_training_job_projects__project_id__training__training_id__get
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+        - name: training_id
+          in: path
+          required: true
+          schema:
+            title: Training Id
+            type: string
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    put:
+      tags:
+        - training
+      summary: Update Training Job
+      description: Update a training job
+      operationId: update_training_job_projects__project_id__training__training_id__put
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+        - name: training_id
+          in: path
+          required: true
+          schema:
+            title: Training Id
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrainingUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrainingResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+        - training
+      summary: Delete Training Job
+      description: Delete a training job
+      operationId: delete_training_job_projects__project_id__training__training_id__delete
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+        - name: training_id
+          in: path
+          required: true
+          schema:
+            title: Training Id
+            type: string
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{project_id}/chats:
+    get:
+      tags:
+        - chats
+      summary: List Chats
+      description: >-
+        List all chats for a project with optional filtering
+
+        Parameters:
+        - project_id: The ID of the project to list chats for
+        - owner: Optional owner to filter chats by
+      operationId: list_chats_projects__project_id__chats_get
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+        - name: owner
+          in: query
+          required: false
+          schema:
+            title: Owner
+            type: string
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatList'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+        - chats
+      summary: Create Chat
+      description: Create a new chat for a project
+      operationId: create_chat_projects__project_id__chats_post
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{project_id}/chats/{chat_id}:
+    get:
+      tags:
+        - chats
+      summary: Get Chat
+      description: Get a chat by ID
+      operationId: get_chat_projects__project_id__chats__chat_id__get
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+        - name: chat_id
+          in: path
+          required: true
+          schema:
+            title: Chat Id
+            type: string
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+        - chats
+      summary: Delete Chat
+      description: Delete a chat
+      operationId: delete_chat_projects__project_id__chats__chat_id__delete
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+        - name: chat_id
+          in: path
+          required: true
+          schema:
+            title: Chat Id
+            type: string
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                title: Response Delete Chat Projects  Project Id  Chats  Chat Id  Delete
+                type: object
+                additionalProperties:
+                  type: string
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+        - chats
+      summary: Update Chat
+      description: Update chat information
+      operationId: update_chat_projects__project_id__chats__chat_id__patch
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+        - name: chat_id
+          in: path
+          required: true
+          schema:
+            title: Chat Id
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{project_id}/chats/{chat_id}/messages:
+    get:
+      tags:
+        - messages
+      summary: Get Messages
+      description: Get messages from a chat with pagination
+      operationId: get_messages_projects__project_id__chats__chat_id__messages_get
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+        - name: chat_id
+          in: path
+          required: true
+          schema:
+            title: Chat Id
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            title: Limit
+            type: integer
+            default: 50
+        - name: before
+          in: query
+          required: false
+          schema:
+            title: Before
+            type: string
+        - name: after
+          in: query
+          required: false
+          schema:
+            title: After
+            type: string
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageList'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+        - messages
+      summary: Create Message
+      description: Create a new message in a chat with project-level context
+      operationId: create_message_projects__project_id__chats__chat_id__messages_post
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+        - name: chat_id
+          in: path
+          required: true
+          schema:
+            title: Chat Id
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{project_id}/chats/{chat_id}/messages/{message_id}:
+    get:
+      tags:
+        - messages
+      summary: Get Message
+      description: Get a specific message
+      operationId: get_message_projects__project_id__chats__chat_id__messages__message_id__get
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+        - name: chat_id
+          in: path
+          required: true
+          schema:
+            title: Chat Id
+            type: string
+        - name: message_id
+          in: path
+          required: true
+          schema:
+            title: Message Id
+            type: string
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+        - messages
+      summary: Delete Message
+      description: Delete a message
+      operationId: delete_message_projects__project_id__chats__chat_id__messages__message_id__delete
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+        - name: chat_id
+          in: path
+          required: true
+          schema:
+            title: Chat Id
+            type: string
+        - name: message_id
+          in: path
+          required: true
+          schema:
+            title: Message Id
+            type: string
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                title: Response Delete Message Projects  Project Id  Chats  Chat Id  Messages  Message Id  Delete
+                type: object
+                additionalProperties:
+                  type: string
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /projects/{project_id}/chats/{chat_id}/stream:
+    get:
+      tags:
+        - messages
+      summary: Stream Chat Response
+      description: Stream the AI's response using Server-Sent Events
+      operationId: stream_chat_response_projects__project_id__chats__chat_id__stream_get
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema:
+            title: Project Id
+            type: string
+        - name: chat_id
+          in: path
+          required: true
+          schema:
+            title: Chat Id
+            type: string
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /:
+    get:
+      tags:
+        - Health
+      summary: Root
+      operationId: root__get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+components:
+  schemas:
+    Body_upload_csv_data_source_projects__project_id__data_sources_csv_upload_post:
+      title: Body_upload_csv_data_source_projects__project_id__data_sources_csv_upload_post
+      type: object
+      required:
+        - name
+        - file
+      properties:
+        name:
+          title: Name
+          type: string
+        description:
+          title: Description
+          type: string
+        file:
+          title: File
+          type: string
+          format: binary
+    ChatCreate:
+      title: ChatCreate
+      description: Schema for creating a chat
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          title: Name
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          title: Description
+          type: string
+          maxLength: 500
+        owner:
+          title: Owner
+          type: string
+          description: Owner or creator of the chat
+    ChatList:
+      title: ChatList
+      description: Schema for list of chats
+      type: object
+      required:
+        - chats
+      properties:
+        chats:
+          title: Chats
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatResponse'
+    ChatResponse:
+      title: ChatResponse
+      description: Schema for chat response
+      type: object
+      required:
+        - id
+        - project_id
+        - name
+        - message_count
+        - created_at
+        - updated_at
+      properties:
+        id:
+          title: Id
+          type: string
+        project_id:
+          title: Project Id
+          type: string
+        name:
+          title: Name
+          type: string
+        description:
+          title: Description
+          type: string
+        owner:
+          title: Owner
+          type: string
+        message_count:
+          title: Message Count
+          type: integer
+        created_at:
+          title: Created At
+          type: string
+          format: date-time
+        updated_at:
+          title: Updated At
+          type: string
+          format: date-time
+    ChatUpdate:
+      title: ChatUpdate
+      description: Schema for updating a chat
+      type: object
+      properties:
+        name:
+          title: Name
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          title: Description
+          type: string
+          maxLength: 500
+    DataSourceCategory:
+      title: DataSourceCategory
+      description: Enum for data source categories
+      type: string
+      enum:
+        - document
+        - code
+        - data
+    DataSourceCreate:
+      title: DataSourceCreate
+      description: Schema for creating a data source
+      type: object
+      required:
+        - type
+        - name
+      properties:
+        type:
+          $ref: '#/components/schemas/DataSourceType'
+        name:
+          title: Name
+          type: string
+          minLength: 1
+          maxLength: 100
+        configuration:
+          title: Configuration
+          type: object
+    DataSourceFieldDefinition:
+      title: DataSourceFieldDefinition
+      description: Schema for data source field definition
+      type: object
+      required:
+        - name
+        - type
+        - description
+      properties:
+        name:
+          title: Name
+          type: string
+        type:
+          title: Type
+          type: string
+        description:
+          title: Description
+          type: string
+        optional:
+          title: Optional
+          type: boolean
+          default: false
+    DataSourceList:
+      title: DataSourceList
+      description: Schema for list of data sources
+      type: object
+      required:
+        - data_sources
+      properties:
+        data_sources:
+          title: Data Sources
+          type: array
+          items:
+            $ref: '#/components/schemas/DataSourceResponse'
+    DataSourceResponse:
+      title: DataSourceResponse
+      description: Schema for data source response
+      type: object
+      required:
+        - id
+        - project_id
+        - type
+        - name
+        - configuration
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          title: Id
+          type: string
+        project_id:
+          title: Project Id
+          type: string
+        type:
+          title: Type
+          type: string
+        name:
+          title: Name
+          type: string
+        configuration:
+          title: Configuration
+          type: object
+        status:
+          title: Status
+          type: string
+        created_at:
+          title: Created At
+          type: string
+          format: date-time
+        updated_at:
+          title: Updated At
+          type: string
+          format: date-time
+    DataSourceType:
+      title: DataSourceType
+      description: Enum for data source types
+      type: string
+      enum:
+        - google_drive
+        - github
+        - databricks
+        - direct_upload
+        - csv_upload
+        - xlsx_upload
+    DataSourceTypeDefinition:
+      title: DataSourceTypeDefinition
+      description: Schema for data source type definition
+      type: object
+      required:
+        - id
+        - name
+        - category
+        - required_fields
+      properties:
+        id:
+          title: Id
+          type: string
+        name:
+          title: Name
+          type: string
+        category:
+          $ref: '#/components/schemas/DataSourceCategory'
+        required_fields:
+          title: Required Fields
+          type: array
+          items:
+            $ref: '#/components/schemas/DataSourceFieldDefinition'
+    DataSourceTypeList:
+      title: DataSourceTypeList
+      description: Schema for list of data source types
+      type: object
+      required:
+        - data_source_types
+      properties:
+        data_source_types:
+          title: Data Source Types
+          type: array
+          items:
+            $ref: '#/components/schemas/DataSourceTypeDefinition'
+    DataSourceUpdate:
+      title: DataSourceUpdate
+      description: Schema for updating a data source
+      type: object
+      properties:
+        name:
+          title: Name
+          type: string
+          minLength: 1
+          maxLength: 100
+        configuration:
+          title: Configuration
+          type: object
+    DataSourceValidationResponse:
+      title: DataSourceValidationResponse
+      description: Schema for data source validation response
+      type: object
+      required:
+        - status
+        - message
+      properties:
+        status:
+          title: Status
+          type: string
+        message:
+          title: Message
+          type: string
+    HTTPValidationError:
+      title: HTTPValidationError
+      type: object
+      properties:
+        detail:
+          title: Detail
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationError'
+    MessageCreate:
+      title: MessageCreate
+      description: Schema for creating a message
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          title: Content
+          type: string
+        metadata:
+          title: Metadata
+          type: object
+    MessageList:
+      title: MessageList
+      description: Schema for list of messages
+      type: object
+      required:
+        - messages
+      properties:
+        messages:
+          title: Messages
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageResponse'
+        has_more:
+          title: Has More
+          type: boolean
+          default: false
+    MessageResponse:
+      title: MessageResponse
+      description: Schema for message response
+      type: object
+      required:
+        - id
+        - chat_id
+        - role
+        - content
+        - created_at
+      properties:
+        id:
+          title: Id
+          type: string
+        chat_id:
+          title: Chat Id
+          type: string
+        project_id:
+          title: Project Id
+          type: string
+        role:
+          title: Role
+          type: string
+        content:
+          title: Content
+          type: string
+        status:
+          title: Status
+          type: string
+        metadata:
+          title: Metadata
+          type: object
+        created_at:
+          title: Created At
+          type: string
+          format: date-time
+        completed_at:
+          title: Completed At
+          type: string
+          format: date-time
+    ProjectCreate:
+      title: ProjectCreate
+      description: Schema for creating a project
+      type: object
+      required:
+        - name
+        - organization_id
+      properties:
+        name:
+          title: Name
+          type: string
+          minLength: 1
+          maxLength: 100
+        organization_id:
+          title: Organization Id
+          type: string
+          minLength: 1
+        description:
+          title: Description
+          type: string
+          maxLength: 500
+    ProjectList:
+      title: ProjectList
+      description: Schema for list of projects
+      type: object
+      required:
+        - projects
+      properties:
+        projects:
+          title: Projects
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectResponse'
+    ProjectResponse:
+      title: ProjectResponse
+      description: Schema for project response
+      type: object
+      required:
+        - id
+        - organization_id
+        - name
+        - created_at
+        - updated_at
+      properties:
+        id:
+          title: Id
+          type: string
+        organization_id:
+          title: Organization Id
+          type: string
+        name:
+          title: Name
+          type: string
+        description:
+          title: Description
+          type: string
+        created_at:
+          title: Created At
+          type: string
+          format: date-time
+        updated_at:
+          title: Updated At
+          type: string
+          format: date-time
+    ProjectUpdate:
+      title: ProjectUpdate
+      description: Schema for updating a project
+      type: object
+      properties:
+        name:
+          title: Name
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          title: Description
+          type: string
+          maxLength: 500
+    TrainingCreate:
+      title: TrainingCreate
+      description: Schema for creating a training job
+      type: object
+      required:
+        - data_source_ids
+      properties:
+        data_source_ids:
+          title: Data Source Ids
+          type: array
+          items:
+            type: string
+          description: List of data source IDs to include in training
+        description:
+          title: Description
+          type: string
+          maxLength: 500
+          description: Optional description of the training job
+    TrainingList:
+      title: TrainingList
+      description: Schema for list of training jobs
+      type: object
+      required:
+        - training_jobs
+      properties:
+        training_jobs:
+          title: Training Jobs
+          type: array
+          items:
+            $ref: '#/components/schemas/TrainingResponse'
+    TrainingResponse:
+      title: TrainingResponse
+      description: Schema for training job response
+      type: object
+      required:
+        - id
+        - project_id
+        - data_source_ids
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          title: Id
+          type: string
+        project_id:
+          title: Project Id
+          type: string
+        data_source_ids:
+          title: Data Source Ids
+          type: array
+          items:
+            type: string
+        status:
+          title: Status
+          type: string
+        description:
+          title: Description
+          type: string
+        progress:
+          title: Progress
+          type: object
+        error:
+          title: Error
+          type: string
+        created_at:
+          title: Created At
+          type: string
+          format: date-time
+        updated_at:
+          title: Updated At
+          type: string
+          format: date-time
+    TrainingUpdate:
+      title: TrainingUpdate
+      description: Schema for updating a training job
+      type: object
+      properties:
+        status:
+          title: Status
+          type: string
+        description:
+          title: Description
+          type: string
+          maxLength: 500
+        progress:
+          title: Progress
+          type: object
+        error:
+          title: Error
+          type: string
+        data_source_ids:
+          title: Data Source Ids
+          type: array
+          items:
+            type: string
+    ValidationError:
+      title: ValidationError
+      description: Schema for validation error item
+      type: object
+      required:
+        - loc
+        - msg
+        - type
+      properties:
+        loc:
+          title: Location
+          type: array
+          items:
+            anyOf:
+              - type: string
+              - type: integer
+        msg:
+          title: Message
+          type: string
+        type:
+          title: Error Type
+          type: string

@@ -1,0 +1,108 @@
+/* Callout Styles for remark-callout plugin */
+
+[data-callout] {
+  @apply my-4 p-4 rounded-lg border-l-4 shadow-sm;
+}
+
+[data-callout-title] {
+  @apply flex items-center gap-2 font-semibold mb-2 text-sm uppercase tracking-wide;
+}
+
+[data-callout-body] {
+  @apply space-y-2;
+}
+
+[data-callout-body] > *:first-child {
+  @apply mt-0;
+}
+
+[data-callout-body] > *:last-child {
+  @apply mb-0;
+}
+
+/* Note callouts (default) */
+[data-callout][data-callout-type="note"] {
+  @apply border-blue-500 bg-blue-50 dark:bg-blue-950/30;
+}
+
+[data-callout][data-callout-type="note"] [data-callout-title] {
+  @apply text-blue-700 dark:text-blue-300;
+}
+
+/* Info callouts */
+[data-callout][data-callout-type="info"] {
+  @apply border-cyan-500 bg-cyan-50 dark:bg-cyan-950/30;
+}
+
+[data-callout][data-callout-type="info"] [data-callout-title] {
+  @apply text-cyan-700 dark:text-cyan-300;
+}
+
+/* Warning callouts */
+[data-callout][data-callout-type="warning"] {
+  @apply border-yellow-500 bg-yellow-50 dark:bg-yellow-950/30;
+}
+
+[data-callout][data-callout-type="warning"] [data-callout-title] {
+  @apply text-yellow-700 dark:text-yellow-300;
+}
+
+/* Error/Danger callouts */
+[data-callout][data-callout-type="error"],
+[data-callout][data-callout-type="danger"] {
+  @apply border-red-500 bg-red-50 dark:bg-red-950/30;
+}
+
+[data-callout][data-callout-type="error"] [data-callout-title],
+[data-callout][data-callout-type="danger"] [data-callout-title] {
+  @apply text-red-700 dark:text-red-300;
+}
+
+/* Success/Tip callouts */
+[data-callout][data-callout-type="tip"],
+[data-callout][data-callout-type="success"] {
+  @apply border-green-500 bg-green-50 dark:bg-green-950/30;
+}
+
+[data-callout][data-callout-type="tip"] [data-callout-title],
+[data-callout][data-callout-type="success"] [data-callout-title] {
+  @apply text-green-700 dark:text-green-300;
+}
+
+/* Abstract/Summary callouts */
+[data-callout][data-callout-type="abstract"],
+[data-callout][data-callout-type="summary"] {
+  @apply border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30;
+}
+
+[data-callout][data-callout-type="abstract"] [data-callout-title],
+[data-callout][data-callout-type="summary"] [data-callout-title] {
+  @apply text-indigo-700 dark:text-indigo-300;
+}
+
+/* Question callouts */
+[data-callout][data-callout-type="question"] {
+  @apply border-purple-500 bg-purple-50 dark:bg-purple-950/30;
+}
+
+[data-callout][data-callout-type="question"] [data-callout-title] {
+  @apply text-purple-700 dark:text-purple-300;
+}
+
+/* Quote callouts */
+[data-callout][data-callout-type="quote"] {
+  @apply border-gray-500 bg-gray-50 dark:bg-gray-950/30;
+}
+
+[data-callout][data-callout-type="quote"] [data-callout-title] {
+  @apply text-gray-700 dark:text-gray-300;
+}
+
+/* Math display styling */
+.math-display {
+  @apply my-4 text-center overflow-x-auto;
+}
+
+.math-inline {
+  @apply inline-block mx-1;
+} 

@@ -1,0 +1,251 @@
+name: Deploy BigQuery Access Changes
+
+on:
+  push:
+    branches: [main]
+    paths: 
+      - 'docs/access-requests/*.md'
+      - 'terraform/bigquery-access/*.tf' 
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+
+jobs:
+  deploy-access:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Extract ticket information from merged files
+      id: extract-info
+      run: |
+        echo "🔍 Finding access request documentation and Terraform files"
+        
+        # Check if this is the first commit (no previous commit exists)
+        if ! git rev-parse HEAD~1 >/dev/null 2>&1; then
+          echo "First commit detected, checking all files"
+          CHANGED_DOCS=$(find docs/access-requests -name "*.md" 2>/dev/null || true)
+          CHANGED_TERRAFORM=$(find terraform/bigquery-access -name "*.tf" 2>/dev/null || true)
+        else
+          echo "Comparing with previous commit"
+          CHANGED_DOCS=$(git diff --name-only HEAD~1 HEAD | grep "docs/access-requests/.*\.md$" || true)
+          CHANGED_TERRAFORM=$(git diff --name-only HEAD~1 HEAD | grep "terraform/bigquery-access/.*\.tf$" || true)
+        fi
+        
+        # Combine both documentation and terraform changes
+        ALL_CHANGED_FILES="$CHANGED_DOCS $CHANGED_TERRAFORM"
+        
+        if [ -z "$ALL_CHANGED_FILES" ]; then
+          echo "No access request files found, skipping deployment"
+          exit 0
+        fi
+        
+        echo "Found changed files: $ALL_CHANGED_FILES"
+        
+        # Process each documentation file to extract ticket info
+        for DOC_FILE in $CHANGED_DOCS; do
+          if [ -f "$DOC_FILE" ]; then
+            echo "📄 Processing documentation: $DOC_FILE"
+            
+            # Extract values from the documentation file
+            TICKET_ID=$(basename "$DOC_FILE" .md)
+            REQUESTER=$(grep "^- \*\*Requester\*\*:" "$DOC_FILE" | sed 's/.*: //')
+            DATASET=$(grep "^- \*\*Dataset\*\*:" "$DOC_FILE" | sed 's/.*: //')
+            ACCESS_DECISION=$(grep "^- \*\*Access Decision\*\*:" "$DOC_FILE" | sed 's/.*: //')
+            
+            echo "Extracted: TICKET_ID=$TICKET_ID, REQUESTER=$REQUESTER, DATASET=$DATASET, ACCESS_DECISION=$ACCESS_DECISION"
+            
+            # Deploy regardless of AI decision - human approval (PR merge) overrides AI
+            if [[ "$ACCESS_DECISION" == *"DENIED"* ]]; then
+              echo "🔄 AI originally DENIED access, but VP has overridden by merging PR"
+            elif [[ "$ACCESS_DECISION" == *"ALLOWED"* ]]; then
+              echo "✅ AI approved access and VP confirmed by merging PR"
+            fi
+            
+            echo "🚀 Proceeding with deployment based on human approval"
+            echo "TICKET_ID=$TICKET_ID" >> $GITHUB_ENV
+            echo "REQUESTER=$REQUESTER" >> $GITHUB_ENV
+            echo "DATASET=$DATASET" >> $GITHUB_ENV
+            echo "ACCESS_DECISION=$ACCESS_DECISION" >> $GITHUB_ENV
+            
+            # Check if corresponding Terraform file exists
+            TERRAFORM_FILE="terraform/bigquery-access/${TICKET_ID}.tf"
+            if [ -f "$TERRAFORM_FILE" ]; then
+              echo "✅ Found AI-generated Terraform file: $TERRAFORM_FILE"
+              echo "TERRAFORM_FILE=$TERRAFORM_FILE" >> $GITHUB_ENV
+              echo "USE_AI_TERRAFORM=true" >> $GITHUB_ENV
+            else
+              echo "⚠️ No AI-generated Terraform found, will generate basic configuration"
+              echo "USE_AI_TERRAFORM=false" >> $GITHUB_ENV
+            fi
+            
+            echo "DEPLOY_TERRAFORM=true" >> $GITHUB_ENV
+            break  # Process only the first file for now
+          fi
+        done
+
+    - name: Setup Terraform
+      if: env.DEPLOY_TERRAFORM == 'true'
+      uses: hashicorp/setup-terraform@v2
+
+    - name: Authenticate to Google Cloud
+      if: env.DEPLOY_TERRAFORM == 'true'
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+    - name: Prepare Terraform configuration
+      if: env.DEPLOY_TERRAFORM == 'true'
+      run: |
+        echo "🏗️ Preparing Terraform configuration"
+        
+        # Create working directory
+        mkdir -p terraform-deploy
+        cd terraform-deploy
+        
+        if [ "$USE_AI_TERRAFORM" = "true" ]; then
+          echo "✅ Using AI-generated Terraform configuration"
+          echo "📄 AI-generated Terraform content:"
+          cat "../$TERRAFORM_FILE"
+          
+          # Copy the AI-generated Terraform file
+          cp "../$TERRAFORM_FILE" "./main.tf"
+          
+          # Ensure it has the required provider configuration
+          if ! grep -q "provider \"google\"" main.tf; then
+            echo "🔧 Adding missing provider configuration"
+            cat > provider.tf << EOF
+        terraform {
+          required_providers {
+            google = {
+              source  = "hashicorp/google"
+              version = "~> 4.0"
+            }
+          }
+        }
+
+        provider "google" {
+          project = "$GCP_PROJECT_ID"
+        }
+        EOF
+          fi
+          
+        else
+          echo "⚠️ No AI Terraform found, generating basic configuration"
+          
+          # Extract dataset name (remove project prefix if present)
+          if [[ "$DATASET" == *"."* ]]; then
+            DATASET_NAME=$(echo "$DATASET" | cut -d'.' -f2-)
+          else
+            DATASET_NAME="$DATASET"
+          fi
+          
+          # Generate basic Terraform configuration
+          cat > main.tf << EOF
+        terraform {
+          required_providers {
+            google = {
+              source  = "hashicorp/google"
+              version = "~> 4.0"
+            }
+          }
+        }
+
+        provider "google" {
+          project = "$GCP_PROJECT_ID"
+        }
+
+        resource "google_bigquery_dataset_iam_member" "${TICKET_ID//-/_}_access" {
+          dataset_id = "$DATASET_NAME"
+          role       = "roles/bigquery.dataViewer"
+          member     = "user:$REQUESTER"
+        }
+        EOF
+        fi
+        
+        echo "📄 Final Terraform configuration:"
+        echo "=================="
+        cat *.tf
+        echo "=================="
+
+    - name: Apply Terraform configuration
+      if: env.DEPLOY_TERRAFORM == 'true'
+      run: |
+        cd terraform-deploy
+        
+        echo "🚀 Initializing Terraform"
+        terraform init
+        
+        echo "📋 Planning Terraform changes"
+        terraform plan -out=tfplan
+        
+        echo "✅ Applying Terraform changes"
+        terraform apply tfplan
+        
+        if [[ "$ACCESS_DECISION" == *"DENIED"* ]]; then
+          echo "✅ VP override successful: $REQUESTER now has access to $DATASET (originally denied by AI)"
+        else
+          echo "✅ User $REQUESTER now has access to $DATASET"
+        fi
+        
+        echo "🎉 BigQuery access deployment completed successfully!"
+
+    - name: Update JIRA with deployment success
+      if: env.DEPLOY_TERRAFORM == 'true'
+      run: |
+        echo "📝 Updating JIRA ticket with deployment success"
+        
+        # Prepare JIRA comment using proper ADF format
+        COMMENT_BODY=$(cat << 'EOF'
+        {
+          "body": {
+            "type": "doc",
+            "version": 1,
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "✅ Access Granted - Request Approved"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+        EOF
+        )
+        
+        # Update JIRA ticket with success message
+        if [ -n "$JIRA_EMAIL" ] && [ -n "$JIRA_API_TOKEN" ] && [ -n "$JIRA_BASE_URL" ]; then
+          curl -X POST \
+            -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
+            -u "$JIRA_EMAIL:$JIRA_API_TOKEN" \
+            -d "$COMMENT_BODY" \
+            "$JIRA_BASE_URL/rest/api/3/issue/$TICKET_ID/comment"
+          
+          echo "✅ Updated JIRA ticket with deployment success"
+        else
+          echo "⚠️ JIRA credentials not configured, skipping JIRA update"
+        fi
+      env:
+        JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+        JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+        JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+
+    - name: Deployment summary
+      if: env.DEPLOY_TERRAFORM == 'true'
+      run: |
+        echo "🎉 Deployment Summary"
+        echo "===================="
+        echo "🎫 Ticket ID: $TICKET_ID"
+        echo "👤 User: $REQUESTER"
+        echo "📊 Dataset: $DATASET"
+        echo "🤖 AI Decision: $ACCESS_DECISION"
+        echo "✅ Final Status: ACCESS GRANTED (Human Approved)"
+        echo "🏗️ Terraform Source: AI-Generated"
+        echo "===================="

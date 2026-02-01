@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Design System - Application Style Guide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Sora:wght@100..800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --font-display: 'Outfit', sans-serif;
+            --font-ui: 'Sora', sans-serif;
+            --font-body: 'Plus Jakarta Sans', sans-serif;
+
+            /* Purple Palette */
+            --purple-50: #c2a5ff;
+            --purple-100: #ac93ff;
+            --purple-200: #9780ff;
+            --purple-300: #816eff;
+            --purple-400: #6C5CE7;
+            --purple-500: #5649b8;
+            --purple-600: #40378a;
+            --purple-700: #362e73;
+            --purple-800: #2b245c;
+            --purple-900: #443a94;
+
+            /* Lime Palette */
+            --lime-50: #ffffa5;
+            --lime-100: #ffff93;
+            --lime-200: #ffff80;
+            --lime-300: #ffff6e;
+            --lime-400: #D7E75C;
+            --lime-500: #acb849;
+            --lime-600: #818a37;
+            --lime-700: #6b732e;
+            --lime-800: #565c24;
+            --lime-900: #2b245d;
+
+            /* White Purple */
+            --white-purple-50: #f2f2ff;
+            --white-purple-100: #d9d9ff;
+            --white-purple-200: #a6a6ff;
+
+            /* White Lime */
+            --white-lime-50: #fffff2;
+            --white-lime-100: #fefff2;
+
+            /* Light Mode */
+            --bg-primary: #ffffff;
+            --bg-secondary: #fafafa;
+            --bg-tertiary: #f5f5f5;
+            --text-primary: #111827;
+            --text-secondary: #4b5563;
+            --text-tertiary: #6b7280;
+            --border-color: #e5e7eb;
+            --shadow-color: rgba(108, 92, 231, 0.2);
+        }
+
+        .dark-mode {
+            --bg-primary: #111827;
+            --bg-secondary: #1f2937;
+            --bg-tertiary: #374151;
+            --text-primary: #F5F7F9;
+            --text-secondary: #9ca3af;
+            --text-tertiary: #6b7280;
+            --border-color: #374151;
+            --shadow-color: rgba(108, 92, 231, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Typography */
+        h1, h2, nav {
+            font-family: var(--font-display);
+        }
+
+        h3, h4, h5, h6, button, label {
+            font-family: var(--font-ui);
+        }
+
+        h1 { font-size: 3rem; font-weight: 700; margin-bottom: 1rem; }
+        h2 { font-size: 2.25rem; font-weight: 600; margin: 2rem 0 1rem; }
+        h3 { font-size: 1.875rem; font-weight: 600; margin: 1.5rem 0 0.75rem; }
+        h4 { font-size: 1.5rem; font-weight: 600; margin: 1rem 0 0.5rem; }
+        h5 { font-size: 1.25rem; font-weight: 600; margin: 0.75rem 0 0.5rem; }
+
+        /* Navigation */
+        nav {
+            position: sticky;
+            top: 0;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 100;
+            box-shadow: 0 2px 8px var(--shadow-color);
+        }
+
+        .nav-brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--purple-400);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--purple-400);
+        }
+
+        .theme-toggle {
+            padding: 0.5rem 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-family: var(--font-ui);
+            color: var(--text-primary);
+            transition: all 0.2s;
+        }
+
+        .theme-toggle:hover {
+            background: var(--purple-400);
+            color: white;
+        }
+
+        /* Section */
+        .section {
+            margin: 3rem 0;
+        }
+
+        /* Color Palette */
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .color-swatch {
+            border-radius: 0.5rem;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        .color-block {
+            height: 80px;
+            width: 100%;
+        }
+
+        .color-info {
+            padding: 0.75rem;
+            background: var(--bg-secondary);
+            font-size: 0.75rem;
+        }
+
+        .color-name {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .color-value {
+            color: var(--text-tertiary);
+            font-family: monospace;
+        }
+
+        /* Typography Showcase */
+        .type-example {
+            margin: 1.5rem 0;
+            padding: 1.5rem;
+            background: var(--bg-secondary);
+            border-radius: 0.5rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .font-display { font-family: var(--font-display); }
+        .font-ui { font-family: var(--font-ui); }
+        .font-body { font-family: var(--font-body); }
+
+        /* Component Showcase */
+        .component-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        /* Card */
+        .card {
+            position: relative;
+            overflow: hidden;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            border: 1px solid var(--border-color);
+            background: var(--bg-primary);
+            box-shadow: 0 4px 6px var(--shadow-color);
+            transition: all 0.2s;
+        }
+
+        .card:hover {
+            box-shadow: 0 10px 20px var(--shadow-color);
+            transform: translateY(-2px);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-description {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        /* Buttons */
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin: 1rem 0;
+        }
+
+        .btn {
+            padding: 0.625rem 1.25rem;
+            border-radius: 0.5rem;
+            border: none;
+            font-family: var(--font-ui);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+        }
+
+        .btn-primary {
+            background: var(--purple-400);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--purple-500);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-secondary);
+        }
+
+        .btn-ghost:hover {
+            background: var(--bg-secondary);
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin: 1.5rem 0;
+        }
+
+        .form-label {
+            display: block;
+            font-family: var(--font-ui);
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.625rem 0.875rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            font-family: var(--font-ui);
+            color: var(--text-primary);
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--purple-400);
+            box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.1);
+        }
+
+        .form-hint {
+            margin-top: 0.25rem;
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+        }
+
+        /* Status Badges */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-family: var(--font-ui);
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge-success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .dark-mode .badge-success {
+            background: #064e3b;
+            color: #6ee7b7;
+        }
+
+        .dark-mode .badge-warning {
+            background: #78350f;
+            color: #fcd34d;
+        }
+
+        .dark-mode .badge-error {
+            background: #7f1d1d;
+            color: #fca5a5;
+        }
+
+        .dark-mode .badge-info {
+            background: #1e3a8a;
+            color: #93c5fd;
+        }
+
+        /* Spacing Scale */
+        .spacing-grid {
+            display: grid;
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+
+        .spacing-example {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .spacing-label {
+            width: 80px;
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+        }
+
+        .spacing-box {
+            background: var(--purple-400);
+            height: 20px;
+        }
+
+        /* Code Block */
+        pre {
+            background: var(--bg-secondary);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            border: 1px solid var(--border-color);
+            margin: 1rem 0;
+        }
+
+        code {
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            color: var(--purple-400);
+        }
+
+        /* Animation Examples */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(10px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .animate-pulse { animation: pulse 2s ease-in-out infinite; }
+        .animate-spin { animation: spin 1s linear infinite; }
+        .animate-slide-up { animation: slideUp 0.3s ease-out; }
+
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+
+        thead {
+            background: var(--bg-secondary);
+        }
+
+        th {
+            padding: 0.75rem;
+            text-align: left;
+            font-family: var(--font-ui);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tbody tr:hover {
+            background: var(--bg-secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            h1 { font-size: 2rem; }
+            h2 { font-size: 1.5rem; }
+
+            .component-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="nav-brand">Design System</div>
+        <div class="nav-links">
+            <a href="#typography">Typography</a>
+            <a href="#colors">Colors</a>
+            <a href="#components">Components</a>
+            <a href="#spacing">Spacing</a>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()">Toggle Dark Mode</button>
+    </nav>
+
+    <div class="container">
+        <!-- Header -->
+        <section class="section">
+            <h1>Application Style Guide</h1>
+            <p style="font-size: 1.125rem; color: var(--text-secondary);">
+                A comprehensive design system built on modern principles with thoughtful typography,
+                vibrant colors, and accessible components.
+            </p>
+        </section>
+
+        <!-- Design Philosophy -->
+        <section class="section">
+            <h2>Design Philosophy</h2>
+            <div class="component-grid">
+                <div class="card">
+                    <div class="card-title">Modern & Clean</div>
+                    <div class="card-description">Minimalist approach with thoughtful use of whitespace</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Hierarchy-Driven</div>
+                    <div class="card-description">Clear visual hierarchy through typography and color</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Accessible</div>
+                    <div class="card-description">WCAG 2.1 AA compliant with high contrast ratios</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Typography -->
+        <section class="section" id="typography">
+            <h2>Typography System</h2>
+
+            <h3>Font Families</h3>
+
+            <div class="type-example">
+                <h4 class="font-display">Outfit - Display Font</h4>
+                <p class="font-display">Used for high-impact headings and navigation</p>
+                <p class="font-display" style="font-weight: 300;">Light (300) • Medium (500) • Bold (700) • Black (900)</p>
+            </div>
+
+            <div class="type-example">
+                <h4 class="font-ui">Sora - UI Font</h4>
+                <p class="font-ui">Used for interface elements and subheadings</p>
+                <p class="font-ui" style="font-weight: 300;">Light (300) • Medium (500) • Semibold (600) • Bold (700)</p>
+            </div>
+
+            <div class="type-example">
+                <h4 class="font-body">Plus Jakarta Sans - Body Font</h4>
+                <p class="font-body">Used for reading content and descriptions</p>
+                <p class="font-body" style="font-weight: 300;">Light (300) • Regular (400) • Medium (500) • Semibold (600) • Bold (700)</p>
+            </div>
+
+            <h3>Type Scale</h3>
+            <div style="margin: 1rem 0;">
+                <div style="font-size: 3.75rem; font-family: var(--font-display); font-weight: 700;">Hero Headline</div>
+                <div style="font-size: 3rem; font-family: var(--font-display); font-weight: 600;">Page Title</div>
+                <div style="font-size: 2.25rem; font-family: var(--font-display); font-weight: 600;">Major Section</div>
+                <div style="font-size: 1.875rem; font-family: var(--font-ui); font-weight: 600;">Section Header</div>
+                <div style="font-size: 1.5rem; font-family: var(--font-ui); font-weight: 600;">Card Title</div>
+                <div style="font-size: 1.25rem; font-family: var(--font-ui); font-weight: 500;">Subsection</div>
+                <div style="font-size: 1rem; font-family: var(--font-body);">Body Text (Default)</div>
+                <div style="font-size: 0.875rem; font-family: var(--font-body); color: var(--text-secondary);">Secondary Text</div>
+                <div style="font-size: 0.75rem; font-family: var(--font-body); color: var(--text-tertiary);">Caption Text</div>
+            </div>
+        </section>
+
+        <!-- Colors -->
+        <section class="section" id="colors">
+            <h2>Color System</h2>
+
+            <h3>Purple Palette (Primary)</h3>
+            <div class="color-grid">
+                <div class="color-swatch">
+                    <div class="color-block" style="background: var(--purple-50);"></div>
+                    <div class="color-info">
+                        <div class="color-name">purple-50</div>
+                        <div class="color-value">#c2a5ff</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-block" style="background: var(--purple-100);"></div>
+                    <div class="color-info">
+                        <div class="color-name">purple-100</div>
+                        <div class="color-value">#ac93ff</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-block" style="background: var(--purple-200);"></div>
+                    <div class="color-info">
+                        <div class="color-name">purple-200</div>
+                        <div class="color-value">#9780ff</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-block" style="background: var(--purple-300);"></div>
+                    <div class="color-info">
+                        <div class="color-name">purple-300</div>
+                        <div class="color-value">#816eff</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-block" style="background: var(--purple-400);"></div>
+                    <div class="color-info">
+                        <div class="color-name">purple-400 ⭐</div>
+                        <div class="color-value">#6C5CE7</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-block" style="background: var(--purple-500);"></div>
+                    <div class="color-info">
+                        <div class="color-name">purple-500</div>
+                        <div class="color-value">#5649b8</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-block" style="background: var(--purple-600);"></div>
+                    <div class="color-info">
+                        <div class="color-name">purple-600</div>
+                        <div class="color-value">#40378a</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-block" style="background: var(--purple-800);"></div>
+                    <div class="color-info">
+                        <div class="color-name">purple-800</div>
+                        <div class="color-value">#2b245c</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Lime Palette (Complementary)</h3>
+            <div class="color-grid">
+                <div class="color-swatch">
+                    <div class="color-block" style="background: var(--lime-50);"></div>
+                    <div class="color-info">
+                        <div class="color-name">lime-50</div>
+                        <div class="color-value">#ffffa5</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-block" style="background: var(--lime-100);"></div>
+                    <div class="color-info">
+                        <div class="color-name">lime-100</div>
+                        <div class="color-value">#ffff93</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-block" style="background: var(--lime-200);"></div>
+                    <div class="color-info">
+                        <div class="color-name">lime-200</div>
+                        <div class="color-value">#ffff80</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-block" style="background: var(--lime-300);"></div>
+                    <div class="color-info">
+                        <div class="color-name">lime-300</div>
+                        <div class="color-value">#ffff6e</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-block" style="background: var(--lime-400);"></div>
+                    <div class="color-info">
+                        <div class="color-name">lime-400 ⭐</div>
+                        <div class="color-value">#D7E75C</div>
+                    </div>
+                </div>
+                <div class="color-swatch">
+                    <div class="color-block" style="background: var(--lime-600);"></div>
+                    <div class="color-info">
+                        <div class="color-name">lime-600</div>
+                        <div class="color-value">#818a37</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Components -->
+        <section class="section" id="components">
+            <h2>Component Library</h2>
+
+            <h3>Buttons</h3>
+            <div class="button-group">
+                <button class="btn btn-primary">Primary Button</button>
+                <button class="btn btn-secondary">Secondary Button</button>
+                <button class="btn btn-ghost">Ghost Button</button>
+            </div>
+
+            <h3>Form Elements</h3>
+            <div class="form-group">
+                <label class="form-label">Project Name</label>
+                <input type="text" class="form-input" placeholder="Enter project name">
+                <div class="form-hint">Choose a descriptive name for your project</div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea class="form-input" rows="4" placeholder="Enter description"></textarea>
+            </div>
+
+            <h3>Status Badges</h3>
+            <div class="button-group">
+                <span class="badge badge-success">Active</span>
+                <span class="badge badge-warning">Pending</span>
+                <span class="badge badge-error">Failed</span>
+                <span class="badge badge-info">In Progress</span>
+            </div>
+
+            <h3>Cards</h3>
+            <div class="component-grid">
+                <div class="card">
+                    <div class="card-title">Feature Card</div>
+                    <div class="card-description">
+                        Interactive cards with hover effects and subtle shadows. Perfect for displaying features or content previews.
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Data Visualization</div>
+                    <div class="card-description">
+                        Cards can contain charts, metrics, and other visual elements to present complex information clearly.
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Action Cards</div>
+                    <div class="card-description">
+                        Use cards as clickable elements to navigate or trigger actions within your application.
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Spacing -->
+        <section class="section" id="spacing">
+            <h2>Spacing System</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+                Consistent spacing creates visual rhythm and hierarchy
+            </p>
+
+            <div class="spacing-grid">
+                <div class="spacing-example">
+                    <span class="spacing-label">0.25rem</span>
+                    <div class="spacing-box" style="width: 0.25rem;"></div>
+                    <span style="font-size: 0.75rem; color: var(--text-tertiary);">p-1</span>
+                </div>
+                <div class="spacing-example">
+                    <span class="spacing-label">0.5rem</span>
+                    <div class="spacing-box" style="width: 0.5rem;"></div>
+                    <span style="font-size: 0.75rem; color: var(--text-tertiary);">p-2</span>
+                </div>
+                <div class="spacing-example">
+                    <span class="spacing-label">0.75rem</span>
+                    <div class="spacing-box" style="width: 0.75rem;"></div>
+                    <span style="font-size: 0.75rem; color: var(--text-tertiary);">p-3</span>
+                </div>
+                <div class="spacing-example">
+                    <span class="spacing-label">1rem</span>
+                    <div class="spacing-box" style="width: 1rem;"></div>
+                    <span style="font-size: 0.75rem; color: var(--text-tertiary);">p-4 (default)</span>
+                </div>
+                <div class="spacing-example">
+                    <span class="spacing-label">1.5rem</span>
+                    <div class="spacing-box" style="width: 1.5rem;"></div>
+                    <span style="font-size: 0.75rem; color: var(--text-tertiary);">p-6</span>
+                </div>
+                <div class="spacing-example">
+                    <span class="spacing-label">2rem</span>
+                    <div class="spacing-box" style="width: 2rem;"></div>
+                    <span style="font-size: 0.75rem; color: var(--text-tertiary);">p-8</span>
+                </div>
+                <div class="spacing-example">
+                    <span class="spacing-label">3rem</span>
+                    <div class="spacing-box" style="width: 3rem;"></div>
+                    <span style="font-size: 0.75rem; color: var(--text-tertiary);">p-12</span>
+                </div>
+                <div class="spacing-example">
+                    <span class="spacing-label">4rem</span>
+                    <div class="spacing-box" style="width: 4rem;"></div>
+                    <span style="font-size: 0.75rem; color: var(--text-tertiary);">p-16</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Animations -->
+        <section class="section">
+            <h2>Animations & Interactions</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+                Subtle animations enhance user experience without being distracting
+            </p>
+
+            <div class="component-grid">
+                <div class="card animate-slide-up">
+                    <div class="card-title">Slide Up</div>
+                    <div class="card-description">Elements smoothly appear with a slide-up animation</div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Pulse Animation</div>
+                    <div class="card-description">
+                        <span class="badge badge-info animate-pulse">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dark Mode -->
+        <section class="section">
+            <h2>Dark Mode</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+                Carefully crafted color mappings ensure readability in both light and dark themes
+            </p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Element</th>
+                        <th>Light Mode</th>
+                        <th>Dark Mode</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Primary Background</td>
+                        <td><code>#ffffff</code></td>
+                        <td><code>#111827</code></td>
+                    </tr>
+                    <tr>
+                        <td>Secondary Background</td>
+                        <td><code>#fafafa</code></td>
+                        <td><code>#1f2937</code></td>
+                    </tr>
+                    <tr>
+                        <td>Primary Text</td>
+                        <td><code>#111827</code></td>
+                        <td><code>#F5F7F9</code></td>
+                    </tr>
+                    <tr>
+                        <td>Secondary Text</td>
+                        <td><code>#4b5563</code></td>
+                        <td><code>#9ca3af</code></td>
+                    </tr>
+                    <tr>
+                        <td>Border</td>
+                        <td><code>#e5e7eb</code></td>
+                        <td><code>#374151</code></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- Accessibility -->
+        <section class="section">
+            <h2>Accessibility</h2>
+            <div class="component-grid">
+                <div class="card">
+                    <div class="card-title">Color Contrast</div>
+                    <div class="card-description">
+                        All text meets WCAG 2.1 AA standards with minimum 4.5:1 contrast ratio for normal text
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Keyboard Navigation</div>
+                    <div class="card-description">
+                        All interactive elements are keyboard accessible with visible focus states
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Semantic HTML</div>
+                    <div class="card-description">
+                        Proper heading hierarchy and semantic elements ensure screen reader compatibility
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quick Reference -->
+        <section class="section">
+            <h2>Quick Reference</h2>
+
+            <h3>Common Utility Classes</h3>
+            <pre><code>/* Layout */
+flex items-center justify-between
+grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4
+max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
+
+/* Typography */
+text-sm text-gray-600 dark:text-gray-400
+text-2xl font-bold text-gray-900 dark:text-gray-100
+font-display font-semibold
+
+/* Components */
+rounded-lg border border-gray-200 dark:border-gray-700
+bg-white dark:bg-gray-800
+shadow-sm hover:shadow-md transition-shadow duration-200</code></pre>
+
+            <h3>CSS Variables</h3>
+            <pre><code>--font-display: 'Outfit'
+--font-ui: 'Sora'
+--font-body: 'Plus Jakarta Sans'
+--color-primary: #6C5CE7 (purple-400)
+--color-complementary: #D7E75C (lime-400)</code></pre>
+        </section>
+
+        <footer style="margin-top: 4rem; padding: 2rem 0; border-top: 1px solid var(--border-color); text-align: center; color: var(--text-tertiary); font-size: 0.875rem;">
+            <p>Design System • Built with modern web standards</p>
+            <p style="margin-top: 0.5rem;">Font Stack: Outfit, Sora, Plus Jakarta Sans • Primary: Purple (#6C5CE7) • Complementary: Lime (#D7E75C)</p>
+        </footer>
+    </div>
+
+    <script>
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+        }
+
+        // Load saved theme
+        if (localStorage.getItem('theme') === 'dark') {
+            document.body.classList.add('dark-mode');
+        }
+    </script>
+</body>
+</html>

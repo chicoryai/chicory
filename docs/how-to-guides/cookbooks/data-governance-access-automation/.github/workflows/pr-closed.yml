@@ -1,0 +1,32 @@
+# New workflow file: .github/workflows/pr-closed.yml
+name: Update JIRA on PR Close
+
+on:
+  pull_request:
+    types: [closed]
+    paths: 
+      - 'docs/access-requests/*.md'
+
+jobs:
+  update-jira-on-close:
+    if: github.event.pull_request.merged == false  
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Extract ticket ID from PR
+      run: |
+        # Extract ticket ID from PR title or branch name
+        TICKET_ID=$(echo "${{ github.event.pull_request.title }}" | grep -o '[A-Z]\{2,\}-[0-9]\+' | head -1)
+        echo "TICKET_ID=$TICKET_ID" >> $GITHUB_ENV
+    
+    - name: Update JIRA with denial
+      run: |
+        # Add JIRA comment for closed PR
+        COMMENT_BODY='{"body":{"type":"doc","version":1,"content":[{"type":"paragraph","content":[{"type":"text","text":"❌ Access Denied - Request Rejected"}]}]}}'
+        
+        curl -X POST \
+          -H "Accept: application/json" \
+          -H "Content-Type: application/json" \
+          -u "${{ secrets.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+          -d "$COMMENT_BODY" \
+          "${{ secrets.JIRA_BASE_URL }}/rest/api/3/issue/$TICKET_ID/comment"

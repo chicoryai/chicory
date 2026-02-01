@@ -1,0 +1,69 @@
+name: Auto-Resolve PagerDuty Incident
+
+on:
+  issues:
+    types: [closed]
+
+jobs:
+  resolve-pagerduty-incident:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Extract PagerDuty Incident Key
+      id: extract-incident
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const issueBody = context.payload.issue.body;
+          console.log('Issue body length:', issueBody.length);
+          
+          // Look for PagerDuty Incident Key pattern using JavaScript regex
+          const incidentKeyRegex = /\*\*PagerDuty Incident Key:\*\*\s*([a-zA-Z0-9]+)/;
+          const match = issueBody.match(incidentKeyRegex);
+          
+          if (match && match[1]) {
+            const incidentKey = match[1];
+            console.log('Found PagerDuty incident key:', incidentKey);
+            core.setOutput('found', 'true');
+            core.setOutput('incident_key', incidentKey);
+          } else {
+            console.log('No PagerDuty incident key found in issue body');
+            console.log('Searching for pattern: **PagerDuty Incident Key:** followed by alphanumeric characters');
+            core.setOutput('found', 'false');
+          }
+    
+    - name: Resolve PagerDuty Incident
+      if: steps.extract-incident.outputs.found == 'true'
+      run: |
+        # Resolve the incident using PagerDuty Events API v1
+        curl -X POST https://events.pagerduty.com/generic/2010-04-15/create_event.json \
+          -H "Content-Type: application/json" \
+          -d '{
+            "service_key": "${{ secrets.PAGERDUTY_INTEGRATION_KEY }}",
+            "event_type": "resolve",
+            "incident_key": "${{ steps.extract-incident.outputs.incident_key }}",
+            "description": "Issue resolved via GitHub - ${{ github.event.issue.title }}",
+            "details": {
+              "resolved_by": "${{ github.actor }}",
+              "github_issue": "${{ github.event.issue.html_url }}",
+              "resolution_time": "${{ github.event.issue.closed_at }}",
+              "issue_number": "${{ github.event.issue.number }}"
+            }
+          }'
+    
+    
+    - name: No Incident Found
+      if: steps.extract-incident.outputs.found == 'false'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `ℹ️ **No PagerDuty incident key found in this issue.**
+            
+            This issue was closed but no associated PagerDuty incident was automatically resolved.
+            
+            If this issue was related to a PagerDuty incident, please resolve it manually in PagerDuty.`
+          });

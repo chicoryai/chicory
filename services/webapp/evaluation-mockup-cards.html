@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evaluations Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #1a202c;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .breadcrumbs {
+            color: #64748b;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+
+        .breadcrumbs a {
+            color: #6366f1;
+            text-decoration: none;
+        }
+
+        .page-title {
+            font-size: 32px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 24px;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .search-container {
+            position: relative;
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 16px 12px 44px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748b;
+        }
+
+        .filter-chips {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .chip {
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 2px solid #e2e8f0;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .chip.active {
+            background: #6366f1;
+            color: white;
+            border-color: #6366f1;
+        }
+
+        .chip:hover {
+            border-color: #6366f1;
+            transform: translateY(-2px);
+        }
+
+        .primary-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .primary-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .view-toggle {
+            display: flex;
+            background: #f1f5f9;
+            border-radius: 12px;
+            padding: 4px;
+        }
+
+        .view-btn {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .view-btn.active {
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .metrics-bar {
+            display: flex;
+            gap: 16px;
+            overflow-x: auto;
+            padding: 16px 0;
+            margin-bottom: 24px;
+        }
+
+        .metric-card {
+            min-width: 200px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .metric-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: 800;
+            color: #1a202c;
+        }
+
+        .metric-label {
+            font-size: 14px;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+
+        .metric-chart {
+            height: 40px;
+            margin-top: 12px;
+        }
+
+        .evaluations-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 24px;
+        }
+
+        .eval-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            overflow: hidden;
+            transition: all 0.4s ease;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+            border: 2px solid transparent;
+        }
+
+        .eval-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+        }
+
+        .eval-card.running {
+            border-color: #10b981;
+            animation: pulse-border 2s infinite;
+        }
+
+        @keyframes pulse-border {
+            0%, 100% { border-color: #10b981; }
+            50% { border-color: #34d399; }
+        }
+
+        .card-header {
+            padding: 24px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1a202c;
+            margin-bottom: 8px;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-active {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-completed {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status-failed {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .status-running {
+            background: #fef3c7;
+            color: #d97706;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .options-menu {
+            background: none;
+            border: none;
+            font-size: 16px;
+            color: #64748b;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .options-menu:hover {
+            background: #f1f5f9;
+        }
+
+        .visual-stats {
+            padding: 24px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-chart {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 8px;
+            position: relative;
+        }
+
+        .progress-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: conic-gradient(#10b981 0deg 270deg, #e2e8f0 270deg 360deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .progress-circle::before {
+            content: '';
+            width: 60px;
+            height: 60px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+        }
+
+        .progress-text {
+            position: relative;
+            z-index: 1;
+            font-weight: 700;
+            color: #1a202c;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .quick-info {
+            padding: 16px 24px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .info-pill {
+            background: #f1f5f9;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #475569;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .expandable-section {
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .section-header {
+            padding: 16px 24px;
+            background: #f8fafc;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .section-header:hover {
+            background: #f1f5f9;
+        }
+
+        .section-title {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .expand-icon {
+            transition: transform 0.3s ease;
+        }
+
+        .section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .section-content.expanded {
+            max-height: 500px;
+        }
+
+        .section-content-inner {
+            padding: 20px 24px;
+        }
+
+        .test-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .test-table th,
+        .test-table td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .test-table th {
+            background: #f8fafc;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .test-result {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .result-pass {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .result-fail {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 24px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 8px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e2e8f0;
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 16px;
+            padding-left: 24px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -8px;
+            top: 6px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #6366f1;
+        }
+
+        .timeline-content {
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .action-btn {
+            padding: 8px 16px;
+            border: 1px solid #e2e8f0;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .action-btn:hover {
+            border-color: #6366f1;
+            color: #6366f1;
+            transform: translateY(-2px);
+        }
+
+        .running-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 12px;
+            height: 12px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @media (max-width: 768px) {
+            .evaluations-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .search-container {
+                min-width: auto;
+            }
+            
+            .visual-stats {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+        }
+
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .evaluations-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <div class="header">
+            <div class="breadcrumbs">
+                <a href="#">Dashboard</a> / <span>Evaluations</span>
+            </div>
+            <h1 class="page-title">Evaluations</h1>
+            
+            <div class="header-controls">
+                <div class="search-container">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" class="search-input" placeholder="Search evaluations...">
+                </div>
+                
+                <div class="filter-chips">
+                    <div class="chip active" data-filter="all">All</div>
+                    <div class="chip" data-filter="active">Active</div>
+                    <div class="chip" data-filter="completed">Completed</div>
+                    <div class="chip" data-filter="failed">Failed</div>
+                </div>
+                
+                <button class="primary-btn">
+                    <i class="fas fa-plus"></i>
+                    Create Evaluation
+                </button>
+                
+                <div class="view-toggle">
+                    <button class="view-btn active" data-view="grid">
+                        <i class="fas fa-th"></i>
+                    </button>
+                    <button class="view-btn" data-view="list">
+                        <i class="fas fa-list"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metrics Bar -->
+        <div class="metrics-bar">
+            <div class="metric-card">
+                <div class="metric-label">Total Evaluations</div>
+                <div class="metric-value">24</div>
+                <canvas class="metric-chart" id="totalChart"></canvas>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Success Rate</div>
+                <div class="metric-value">87%</div>
+                <canvas class="metric-chart" id="successChart"></canvas>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Active Tests</div>
+                <div class="metric-value">156</div>
+                <canvas class="metric-chart" id="activeChart"></canvas>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Avg Runtime</div>
+                <div class="metric-value">2.3m</div>
+                <canvas class="metric-chart" id="runtimeChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Evaluations Grid -->
+        <div class="evaluations-grid">
+            <!-- Card 1 - Running State -->
+            <div class="eval-card running" data-status="running">
+                <div class="running-indicator"></div>
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">API Response Validation</div>
+                        <div class="status-badge status-running">Running</div>
+                    </div>
+                    <button class="options-menu">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                </div>
+                
+                <div class="visual-stats">
+                    <div class="stat-item">
+                        <div class="stat-chart">
+                            <div class="progress-circle" style="background: conic-gradient(#10b981 0deg 180deg, #e2e8f0 180deg 360deg);">
+                                <div class="progress-text">50%</div>
+                            </div>
+                        </div>
+                        <div class="stat-label">Progress</div>
+                    </div>
+                    <div class="stat-item">
+                        <canvas class="stat-chart" id="runningBar"></canvas>
+                        <div class="stat-label">Test Distribution</div>
+                    </div>
+                    <div class="stat-item">
+                        <canvas class="stat-chart" id="runningTrend"></canvas>
+                        <div class="stat-label">Recent Trend</div>
+                    </div>
+                </div>
+                
+                <div class="quick-info">
+                    <div class="info-pill">
+                        <i class="fas fa-flask"></i>
+                        45 tests
+                    </div>
+                    <div class="info-pill">
+                        <i class="fas fa-clock"></i>
+                        Started 5m ago
+                    </div>
+                    <div class="info-pill">
+                        <i class="fas fa-user"></i>
+                        John Doe
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 2 - Completed -->
+            <div class="eval-card" data-status="completed">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Database Query Performance</div>
+                        <div class="status-badge status-completed">Completed</div>
+                    </div>
+                    <button class="options-menu">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                </div>
+                
+                <div class="visual-stats">
+                    <div class="stat-item">
+                        <div class="stat-chart">
+                            <div class="progress-circle" style="background: conic-gradient(#10b981 0deg 315deg, #e2e8f0 315deg 360deg);">
+                                <div class="progress-text">88%</div>
+                            </div>
+                        </div>
+                        <div class="stat-label">Pass Rate</div>
+                    </div>
+                    <div class="stat-item">
+                        <canvas class="stat-chart" id="completedBar"></canvas>
+                        <div class="stat-label">Test Results</div>
+                    </div>
+                    <div class="stat-item">
+                        <canvas class="stat-chart" id="completedTrend"></canvas>
+                        <div class="stat-label">Performance</div>
+                    </div>
+                </div>
+                
+                <div class="quick-info">
+                    <div class="info-pill">
+                        <i class="fas fa-flask"></i>
+                        32 tests
+                    </div>
+                    <div class="info-pill">
+                        <i class="fas fa-clock"></i>
+                        2 hours ago
+                    </div>
+                    <div class="info-pill">
+                        <i class="fas fa-user"></i>
+                        Jane Smith
+                    </div>
+                </div>
+                
+                <div class="expandable-section">
+                    <div class="section-header" onclick="toggleSection(this)">
+                        <span class="section-title">Test Cases</span>
+                        <i class="fas fa-chevron-down expand-icon"></i>
+                    </div>
+                    <div class="section-content">
+                        <div class="section-content-inner">
+                            <table class="test-table">
+                                <thead>
+                                    <tr>
+                                        <th>Test Name</th>
+                                        <th>Result</th>
+                                        <th>Duration</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>SELECT query performance</td>
+                                        <td><span class="test-result result-pass">PASS</span></td>
+                                        <td>1.2s</td>
+                                    </tr>
+                                    <tr>
+                                        <td>JOIN optimization</td>
+                                        <td><span class="test-result result-pass">PASS</span></td>
+                                        <td>2.1s</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Index utilization</td>
+                                        <td><span class="test-result result-fail">FAIL</span></td>
+                                        <td>5.3s</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="expandable-section">
+                    <div class="section-header" onclick="toggleSection(this)">
+                        <span class="section-title">Actions</span>
+                        <i class="fas fa-chevron-down expand-icon"></i>
+                    </div>
+                    <div class="section-content">
+                        <div class="section-content-inner">
+                            <div class="actions">
+                                <button class="action-btn">
+                                    <i class="fas fa-play"></i>
+                                    Run Again
+                                </button>
+                                <button class="action-btn">
+                                    <i class="fas fa-edit"></i>
+                                    Edit
+                                </button>
+                                <button class="action-btn">
+                                    <i class="fas fa-copy"></i>
+                                    Duplicate
+                                </button>
+                                <button class="action-btn">
+                                    <i class="fas fa-download"></i>
+                                    Export
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 3 - Active -->
+            <div class="eval-card" data-status="active">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">ML Model Accuracy</div>
+                        <div class="status-badge status-active">Active</div>
+                    </div>
+                    <button class="options-menu">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                </div>
+                
+                <div class="visual-stats">
+                    <div class="stat-item">
+                        <div class="stat-chart">
+                            <div class="progress-circle" style="background: conic-gradient(#10b981 0deg 338deg, #e2e8f0 338deg 360deg);">
+                                <div class="progress-text">94%</div>
+                            </div>
+                        </div>
+                        <div class="stat-label">Accuracy</div>
+                    </div>
+                    <div class="stat-item">
+                        <canvas class="stat-chart" id="mlBar"></canvas>
+                        <div class="stat-label">Metrics</div>
+                    </div>
+                    <div class="stat-item">
+                        <canvas class="stat-chart" id="mlTrend"></canvas>
+                        <div class="stat-label">Training Loss</div>
+                    </div>
+                </div>
+                
+                <div class="quick-info">
+                    <div class="info-pill">
+                        <i class="fas fa-flask"></i>
+                        120 tests
+                    </div>
+                    <div class="info-pill">
+                        <i class="fas fa-clock"></i>
+                        1 day ago
+                    </div>
+                    <div class="info-pill">
+                        <i class="fas fa-user"></i>
+                        Alex Chen
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 4 - Failed -->
+            <div class="eval-card" data-status="failed">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Security Vulnerability Scan</div>
+                        <div class="status-badge status-failed">Failed</div>
+                    </div>
+                    <button class="options-menu">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                </div>
+                
+                <div class="visual-stats">
+                    <div class="stat-item">
+                        <div class="stat-chart">
+                            <div class="progress-circle" style="background: conic-gradient(#dc2626 0deg 108deg, #e2e8f0 108deg 360deg);">
+                                <div class="progress-text">30%</div>
+                            </div>
+                        </div>
+                        <div class="stat-label">Success Rate</div>
+                    </div>
+                    <div class="stat-item">
+                        <canvas class="stat-chart" id="securityBar"></canvas>
+                        <div class="stat-label">Vulnerabilities</div>
+                    </div>
+                    <div class="stat-item">
+                        <canvas class="stat-chart" id="securityTrend"></canvas>
+                        <div class="stat-label">Risk Trend</div>
+                    </div>
+                </div>
+                
+                <div class="quick-info">
+                    <div class="info-pill">
+                        <i class="fas fa-flask"></i>
+                        67 tests
+                    </div>
+                    <div class="info-pill">
+                        <i class="fas fa-clock"></i>
+                        3 hours ago
+                    </div>
+                    <div class="info-pill">
+                        <i class="fas fa-user"></i>
+                        Sarah Wilson
+                    </div>
+                </div>
+                
+                <div class="expandable-section">
+                    <div class="section-header" onclick="toggleSection(this)">
+                        <span class="section-title">Run History</span>
+                        <i class="fas fa-chevron-down expand-icon"></i>
+                    </div>
+                    <div class="section-content">
+                        <div class="section-content-inner">
+                            <div class="timeline">
+                                <div class="timeline-item">
+                                    <div class="timeline-content">
+                                        <strong>Failed</strong> - 3 hours ago<br>
+                                        <small>Critical vulnerabilities found in authentication module</small>
+                                    </div>
+                                </div>
+                                <div class="timeline-item">
+                                    <div class="timeline-content">
+                                        <strong>Completed</strong> - 1 day ago<br>
+                                        <small>All tests passed successfully</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 5 - Active -->
+            <div class="eval-card" data-status="active">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">UI Component Testing</div>
+                        <div class="status-badge status-active">Active</div>
+                    </div>
+                    <button class="options-menu">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                </div>
+                
+                <div class="visual-stats">
+                    <div class="stat-item">
+                        <div class="stat-chart">
+                            <div class="progress-circle" style="background: conic-gradient(#10b981 0deg 288deg, #e2e8f0 288deg 360deg);">
+                                <div class="progress-text">80%</div>
+                            </div>
+                        </div>
+                        <div class="stat-label">Coverage</div>
+                    </div>
+                    <div class="stat-item">
+                        <canvas class="stat-chart" id="uiBar"></canvas>
+                        <div class="stat-label">Components</div>
+                    </div>
+                    <div class="stat-item">
+                        <canvas class="stat-chart" id="uiTrend"></canvas>
+                        <div class="stat-label">Render Time</div>
+                    </div>
+                </div>
+                
+                <div class="quick-info">
+                    <div class="info-pill">
+                        <i class="fas fa-flask"></i>
+                        89 tests
+                    </div>
+                    <div class="info-pill">
+                        <i class="fas fa-clock"></i>
+                        6 hours ago
+                    </div>
+                    <div class="info-pill">
+                        <i class="fas fa-user"></i>
+                        Mike Brown
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 6 - Completed -->
+            <div class="eval-card" data-status="completed">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Load Testing Suite</div>
+                        <div class="status-badge status-completed">Completed</div>
+                    </div>
+                    <button class="options-menu">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                </div>
+                
+                <div class="visual-stats">
+                    <div class="stat-item">
+                        <div class="stat-chart">
+                            <div class="progress-circle" style="background: conic-gradient(#10b981 0deg 342deg, #e2e8f0 342deg 360deg);">
+                                <div class="progress-text">95%</div>
+                            </div>
+                        </div>
+                        <div class="stat-label">Stability</div>
+                    </div>
+                    <div class="stat-item">
+                        <canvas class="stat-chart" id="loadBar"></canvas>
+                        <div class="stat-label">Response Times</div>
+                    </div>
+                    <div class="stat-item">
+                        <canvas class="stat-chart" id="loadTrend"></canvas>
+                        <div class="stat-label">Throughput</div>
+                    </div>
+                </div>
+                
+                <div class="quick-info">
+                    <div class="info-pill">
+                        <i class="fas fa-flask"></i>
+                        15 tests
+                    </div>
+                    <div class="info-pill">
+                        <i class="fas fa-clock"></i>
+                        1 day ago
+                    </div>
+                    <div class="info-pill">
+                        <i class="fas fa-user"></i>
+                        Lisa Garcia
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize charts
+        function initializeCharts() {
+            // Metric bar charts
+            createSparkline('totalChart', [12, 15, 18, 20, 22, 24], '#6366f1');
+            createSparkline('successChart', [78, 82, 85, 87, 85, 87], '#10b981');
+            createSparkline('activeChart', [140, 145, 150, 155, 152, 156], '#f59e0b');
+            createSparkline('runtimeChart', [2.8, 2.5, 2.3, 2.1, 2.4, 2.3], '#8b5cf6');
+
+            // Card charts
+            createBarChart('runningBar', [25, 15, 5], ['Pass', 'Fail', 'Running'], ['#10b981', '#dc2626', '#f59e0b']);
+            createLineChart('runningTrend', [85, 88, 87, 89, 85, 87], '#6366f1');
+
+            createBarChart('completedBar', [28, 4], ['Pass', 'Fail'], ['#10b981', '#dc2626']);
+            createLineChart('completedTrend', [1.2, 1.1, 1.3, 1.0, 1.2, 1.1], '#10b981');
+
+            createBarChart('mlBar', [94, 92, 96, 93], ['Accuracy', 'Precision', 'Recall', 'F1'], ['#10b981', '#6366f1', '#8b5cf6', '#f59e0b']);
+            createLineChart('mlTrend', [0.8, 0.6, 0.4, 0.3, 0.2, 0.15], '#dc2626');
+
+            createBarChart('securityBar', [20, 47], ['Safe', 'Vulnerable'], ['#10b981', '#dc2626']);
+            createLineChart('securityTrend', [10, 25, 35, 47, 52, 47], '#dc2626');
+
+            createBarChart('uiBar', [71, 18], ['Pass', 'Fail'], ['#10b981', '#dc2626']);
+            createLineChart('uiTrend', [150, 145, 140, 135, 140, 138], '#6366f1');
+
+            createBarChart('loadBar', [14, 1], ['Pass', 'Fail'], ['#10b981', '#dc2626']);
+            createLineChart('loadTrend', [1200, 1250, 1300, 1280, 1320, 1350], '#10b981');
+        }
+
+        function createSparkline(canvasId, data, color) {
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return;
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map((_, i) => i),
+                    datasets: [{
+                        data: data,
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { display: false },
+                        y: { display: false }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    elements: {
+                        point: { radius: 0 }
+                    }
+                }
+            });
+        }
+
+        function createBarChart(canvasId, data, labels, colors) {
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return;
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { display: false },
+                        y: { display: false }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        function createLineChart(canvasId, data, color) {
+            const ctx = document.getElementById(canvasId);
+            if (!ctx) return;
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map((_, i) => i),
+                    datasets: [{
+                        data: data,
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { display: false },
+                        y: { display: false }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        // Section toggle functionality
+        function toggleSection(header) {
+            const content = header.nextElementSibling;
+            const icon = header.querySelector('.expand-icon');
+            
+            content.classList.toggle('expanded');
+            icon.style.transform = content.classList.contains('expanded') ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+
+        // Filter functionality
+        document.querySelectorAll('.chip').forEach(chip => {
+            chip.addEventListener('click', function() {
+                // Remove active class from all chips
+                document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+                // Add active class to clicked chip
+                this.classList.add('active');
+                
+                const filter = this.dataset.filter;
+                const cards = document.querySelectorAll('.eval-card');
+                
+                cards.forEach(card => {
+                    if (filter === 'all' || card.dataset.status === filter) {
+                        card.style.display = 'block';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+            });
+        });
+
+        // View toggle functionality
+        document.querySelectorAll('.view-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                const view = this.dataset.view;
+                const grid = document.querySelector('.evaluations-grid');
+                
+                if (view === 'list') {
+                    grid.style.gridTemplateColumns = '1fr';
+                } else {
+                    grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(380px, 1fr))';
+                }
+            });
+        });
+
+        // Search functionality
+        document.querySelector('.search-input').addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            const cards = document.querySelectorAll('.eval-card');
+            
+            cards.forEach(card => {
+                const title = card.querySelector('.card-title').textContent.toLowerCase();
+                if (title.includes(query)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+
+        // Initialize everything when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+        });
+    </script>
+</body>
+</html>

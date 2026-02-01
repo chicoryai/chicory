@@ -1,0 +1,38 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true,
+    "excludedCommands": ["docker"],
+    "network": {
+      "allowLocalBinding": true
+    }
+  },
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Read",
+      "Write",
+      "Python",
+      "Skill",
+      "mcp__chicory__chicory_list_projects",
+      "mcp__chicory__chicory_get_context",
+      "mcp__chicory__chicory_create_agent",
+      "mcp__chicory__chicory_list_agents",
+      "mcp__chicory__chicory_get_agent",
+      "mcp__chicory__chicory_update_agent",
+      "mcp__chicory__chicory_deploy_agent",
+      "mcp__chicory__chicory_execute_agent",
+      "mcp__chicory__chicory_list_agent_tasks",
+      "mcp__chicory__chicory_get_agent_task",
+      "mcp__chicory__chicory_create_evaluation",
+      "mcp__chicory__chicory_list_evaluations",
+      "mcp__chicory__chicory_get_evaluation",
+      "mcp__chicory__chicory_execute_evaluation",
+      "mcp__chicory__chicory_get_evaluation_result",
+      "mcp__chicory__chicory_list_evaluation_runs",
+      "mcp__chicory__chicory_add_evaluation_test_cases",
+      "mcp__chicory__chicory_delete_evaluation"
+    ],
+    "deny": []
+  }
+}

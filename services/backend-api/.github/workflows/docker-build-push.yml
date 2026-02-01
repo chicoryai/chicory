@@ -1,0 +1,254 @@
+name: Build and Push Backend to ECR
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to build from'
+        required: false
+        default: 'main'
+        type: string
+      tags:
+        description: 'Image tags (comma-separated, e.g. "dev,latest,v1.0")'
+        required: false
+        default: 'dev'
+        type: string
+      aws_region:
+        description: 'AWS Region for ECR'
+        required: false
+        default: 'us-west-2'
+        type: string
+      aws_account_id:
+        description: 'AWS Account ID'
+        required: false
+        default: '070567846440'
+        type: string
+
+jobs:
+  prepare-tags:
+    runs-on: ubuntu-latest
+    outputs:
+      tags_array: ${{ steps.set-tags.outputs.tags_array }}
+    steps:
+      - name: Checkout code for commit info
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event.inputs.branch || 'main' }}
+
+      - name: Set tags
+        id: set-tags
+        run: |
+          # Get short commit SHA
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "Commit SHA: $SHORT_SHA"
+          
+          # Convert comma-separated tags to JSON array for passing to other jobs
+          INPUT_TAGS="${{ github.event.inputs.tags || 'dev' }}"
+          # Remove any spaces that might exist after commas
+          CLEAN_TAGS=$(echo "$INPUT_TAGS" | sed 's/, */,/g')
+          
+          # Process each tag: if it's 'dev', append the commit SHA
+          PROCESSED_TAGS=()
+          IFS=',' read -ra TAG_ARRAY <<< "$CLEAN_TAGS"
+          for tag in "${TAG_ARRAY[@]}"; do
+            if [ "$tag" == "dev" ]; then
+              # For dev, append commit SHA
+              PROCESSED_TAGS+=("dev-$SHORT_SHA")
+              # Also keep the original dev tag
+              PROCESSED_TAGS+=("dev")
+            else
+              # For other tags (e.g., production ones), keep as-is
+              PROCESSED_TAGS+=("$tag")
+            fi
+          done
+          
+          # Convert to comma-separated string and then to JSON array
+          PROCESSED_TAGS_STR=$(IFS=','; echo "${PROCESSED_TAGS[*]}")
+          TAGS_JSON=$(echo "$PROCESSED_TAGS_STR" | jq -R -c 'split(",")')
+          
+          # Debug output
+          echo "Original tags input: $INPUT_TAGS"
+          echo "Processed tags: $PROCESSED_TAGS_STR"
+          echo "Tags JSON: $TAGS_JSON"
+          
+          # Set outputs
+          echo "tags_array=$TAGS_JSON" >> $GITHUB_OUTPUT
+
+  build-backend:
+    needs: prepare-tags
+    runs-on: ubuntu-latest
+    env:
+      ECR_REPOSITORY: chicory/backend
+      AWS_ACCOUNT_ID: ${{ github.event.inputs.aws_account_id || '070567846440' }}
+      AWS_REGION: ${{ github.event.inputs.aws_region || 'us-west-2' }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.branch || 'main' }}
+
+      - name: Free up disk space
+        run: |
+          # Remove unnecessary directories to free up space
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker image prune -af
+          
+          # Display available disk space
+          df -h
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build and Push Backend Image
+        run: |
+          # Define the full ECR repository URI
+          ECR_URI=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}
+          
+          # Get short commit SHA for Dockerfile label
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          
+          # Build the image once with a temporary tag and include commit info in label
+          docker build \
+            -f Dockerfile \
+            --label "org.opencontainers.image.revision=$SHORT_SHA" \
+            --label "org.opencontainers.image.created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            -t backend-temp-image:latest .
+          
+          # Debug output
+          echo "Building for: $ECR_URI"
+          echo "Commit: $SHORT_SHA"
+          
+          # Parse the tags array from JSON
+          TAGS_ARRAY='${{ needs.prepare-tags.outputs.tags_array }}'
+          
+          # Loop through each tag and push
+          for TAG in $(echo $TAGS_ARRAY | jq -r '.[]'); do
+            echo "Tagging and pushing with tag: $TAG"
+            
+            # Tag the image with this specific tag
+            docker tag backend-temp-image:latest $ECR_URI:$TAG
+            
+            # Push the image with this tag
+            docker push $ECR_URI:$TAG
+            
+            echo "Backend Image pushed: $ECR_URI:$TAG"
+          done
+
+  update-infrastructure:
+    runs-on: ubuntu-latest
+    needs: build-backend
+    # Run on main or test-workflow branch pushes (not workflow_dispatch or other branches)
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' 
+    steps:
+      - name: Checkout backend-api repo for commit info
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      - name: Get commit SHA
+        id: commit-info
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "Commit SHA: $SHORT_SHA"
+
+      - name: Checkout chicory-infra repository
+        uses: actions/checkout@v3
+        with:
+          repository: chicoryai/chicory-infra
+          token: ${{ secrets.INFRA_REPO_PAT }}
+          path: chicory-infra
+          fetch-depth: 1
+
+      - name: Update backend Docker image tag
+        id: update-tag
+        run: |
+          cd chicory-infra
+          SHORT_SHA="${{ steps.commit-info.outputs.short_sha }}"
+          VARIABLES_FILE="environments/prod/variables.tf"
+
+          # Update the Docker image tag using sed
+          # Replace the tag portion after the colon with the new dev-{SHA}
+          sed -i.bak "s|backend:dev-[a-f0-9]*\"|backend:dev-${SHORT_SHA}\"|g" "$VARIABLES_FILE"
+
+          # Check if there were any changes
+          if git diff --quiet "$VARIABLES_FILE"; then
+            echo "No changes detected in $VARIABLES_FILE"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "Changes detected in $VARIABLES_FILE"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            git diff "$VARIABLES_FILE"
+          fi
+
+          # Clean up backup file
+          rm -f "${VARIABLES_FILE}.bak"
+
+      - name: Create Pull Request
+        if: steps.update-tag.outputs.has_changes == 'true'
+        run: |
+          cd chicory-infra
+          SHORT_SHA="${{ steps.commit-info.outputs.short_sha }}"
+          BRANCH_NAME="update-backend-${SHORT_SHA}"
+
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create and checkout new branch
+          git checkout -b "$BRANCH_NAME"
+
+          # Commit changes 
+          git add environments/prod/variables.tf
+          git commit -m "Update backend Docker image to dev-${SHORT_SHA}" \
+                     -m "Automated update from backend-api deployment." \
+                     -m "Backend commit: ${{ github.sha }}" \
+                     -m "Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          # Push branch
+          git push origin "$BRANCH_NAME"
+
+          # Create PR using GitHub CLI
+          # Build PR body using echo to avoid YAML parsing issues
+          echo "## Automated Infrastructure Update" > /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "This PR updates the backend Docker image tag in the prod environment." >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "### Changes" >> /tmp/pr-body.md
+          echo "- **New Docker image**: \`070567846440.dkr.ecr.us-west-2.amazonaws.com/chicory/backend:dev-${SHORT_SHA}\`" >> /tmp/pr-body.md
+          echo "- **Backend commit**: [\`${SHORT_SHA}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})" >> /tmp/pr-body.md
+          echo "- **Workflow run**: [View build logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "### Review Checklist" >> /tmp/pr-body.md
+          echo "- [ ] Verify the Docker image exists in ECR" >> /tmp/pr-body.md
+          echo "- [ ] Review backend changes in commit ${SHORT_SHA}" >> /tmp/pr-body.md
+          echo "- [ ] Approve and merge to deploy new version" >> /tmp/pr-body.md
+          echo "" >> /tmp/pr-body.md
+          echo "---" >> /tmp/pr-body.md
+          echo "🤖 Generated by GitHub Actions" >> /tmp/pr-body.md
+
+          gh pr create \
+            --repo chicoryai/chicory-infra \
+            --base main \
+            --head "$BRANCH_NAME" \
+            --title "Update backend Docker image to dev-${SHORT_SHA}" \
+            --body-file /tmp/pr-body.md
+
+          echo "✅ Pull request created successfully"
+        env:
+          GITHUB_TOKEN: ${{ secrets.INFRA_REPO_PAT }}

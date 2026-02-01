@@ -1,0 +1,144 @@
+flowchart TD
+    subgraph UserInterface["User Interface (Streamlit)"]
+        UI[User Query]
+        ResponseContainer[Response Container]
+    end
+
+    subgraph WorkflowInitialization["Workflow Initialization"]
+        initFeatureBrewAgent[initialize_feature_brew_workflow_agent]
+        loadPrompts[load_prompts]
+        projectConfig[Project Configuration]
+        fileLogging[File Logging]
+    end
+
+    subgraph LLMComponents["LLM Components"]
+        llm[OpenAI Model - gpt-4o]
+        llmMini[OpenAI Mini Model - gpt-4o-mini]
+        reasoningLlm[OpenAI Reasoning - gpt-4o]
+        chatLlm[OpenAI Chat - chatgpt-4o-latest]
+    end
+
+    subgraph StateGraph["LangGraph State Workflow"]
+        subgraph Nodes["Workflow Nodes"]
+            researcher[Researcher - Plan Step]
+            analyst[Analyst - Execute Step]
+            researchReplanner[Research Replanner]
+            labeler[Labeler]
+            wrangler[Wrangler]
+            featureEngineer[Feature Engineer]
+            scientist[Scientist]
+            synthesize[Synthesizer]
+        end
+
+        subgraph StateTransitions["State Transitions"]
+            startNode[START]
+            endNode[END]
+            conditionalEdge{Should End?}
+        end
+    end
+
+    subgraph CallbackHandlers["Callback Handlers"]
+        fileLoggingHandler[File Logging Handler]
+        streamlitHandler[Streamlit Handler]
+        vanillaHandler[Vanilla Streaming Handler]
+    end
+
+    subgraph Tools["Analysis Tools"]
+        pandasAgent[Pandas DataFrame Agent]
+        matplotlib[Matplotlib/Seaborn]
+    end
+
+    subgraph StateDefinition["State Definition"]
+        planExecuteState[PlanExecute TypedDict]
+    end
+
+    subgraph DataModels["Data Models"]
+        planModel[Plan]
+        responseModel[Response]
+        actModel[Act]
+    end
+
+    subgraph Prompts["System Prompts"]
+        plannerPrompt[Planner Prompt]
+        replannerPrompt[Replanner Prompt]
+        synthesizePrompt[Synthesize Prompt]
+        labelPrompt[Label Prompt]
+        wranglingPrompt[Wrangling Prompt]
+        featureEnggPrompt[Feature Engineering Prompt]
+        scientistPrompt[Scientist Prompt]
+    end
+
+    subgraph DataLoading["Data Loading"]
+        loadMetadata[Load Metadata]
+        loadSchema[Load Schema]
+    end
+
+    %% Connections
+    UI --> initFeatureBrewAgent
+    ResponseContainer --> streamlitHandler
+    UI --> ResponseContainer
+
+    initFeatureBrewAgent --> loadPrompts
+    initFeatureBrewAgent --> projectConfig
+    initFeatureBrewAgent --> fileLogging
+    initFeatureBrewAgent --> LLMComponents
+    initFeatureBrewAgent --> StateGraph
+
+    startNode --> researcher
+    researcher --> analyst
+    analyst --> researchReplanner
+    researchReplanner --> conditionalEdge
+    conditionalEdge -->|"response exists"| synthesize
+    conditionalEdge -->|"no response"| analyst
+    synthesize --> labeler
+    labeler --> wrangler
+    wrangler --> featureEngineer
+    featureEngineer --> scientist
+    scientist --> endNode
+
+    analyst --> pandasAgent
+    pandasAgent --> matplotlib
+
+    researcher --> loadMetadata
+    researcher --> loadSchema
+
+    researcher -.->|uses| plannerPrompt
+    researchReplanner -.->|uses| replannerPrompt
+    synthesize -.->|uses| synthesizePrompt
+    labeler -.->|uses| labelPrompt
+    wrangler -.->|uses| wranglingPrompt
+    featureEngineer -.->|uses| featureEnggPrompt
+    scientist -.->|uses| scientistPrompt
+
+    researcher -.->|uses| llm
+    analyst -.->|uses| llm
+    researchReplanner -.->|uses| llm
+    labeler -.->|uses| chatLlm
+    wrangler -.->|uses| chatLlm
+    featureEngineer -.->|uses| chatLlm
+    scientist -.->|uses| chatLlm
+    synthesize -.->|uses| chatLlm
+
+    researcher -.->|input/output| planExecuteState
+    analyst -.->|input/output| planExecuteState
+    researchReplanner -.->|input/output| planExecuteState
+    labeler -.->|input/output| planExecuteState
+    wrangler -.->|input/output| planExecuteState
+    featureEngineer -.->|input/output| planExecuteState
+    scientist -.->|input/output| planExecuteState
+    synthesize -.->|input/output| planExecuteState
+
+    pandasAgent -.->|uses| fileLoggingHandler
+    pandasAgent -.->|uses| streamlitHandler
+    
+    classDef llm fill:#f9d5e5,stroke:#333,stroke-width:1px;
+    classDef state fill:#d5f9e5,stroke:#333,stroke-width:1px;
+    classDef tool fill:#d5e5f9,stroke:#333,stroke-width:1px;
+    classDef model fill:#f9e5d5,stroke:#333,stroke-width:1px;
+    classDef prompt fill:#e5d5f9,stroke:#333,stroke-width:1px;
+    
+    class LLMComponents llm;
+    class StateGraph state;
+    class Tools tool;
+    class DataModels,StateDefinition model;
+    class Prompts prompt;

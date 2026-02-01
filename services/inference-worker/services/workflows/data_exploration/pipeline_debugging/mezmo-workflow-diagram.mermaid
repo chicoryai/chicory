@@ -1,0 +1,118 @@
+flowchart TD
+    subgraph UserInterface["User Interface (Streamlit)"]
+        UI[User Query/Task]
+    end
+
+    subgraph WorkflowInitialization["Workflow Initialization"]
+        initMemzoApi[initialize_memzo_api_workflow_agent]
+        projectConfig[Project Configuration]
+        memoryCache[Memory Cache]
+        graphRagLocal[GraphRAG Local Search]
+    end
+
+    subgraph LLMComponents["LLM Components"]
+        llm[OpenAI Model - gpt-4o]
+        llmMini[OpenAI Mini Model - gpt-4o-mini]
+        reasoningLlm[OpenAI Reasoning - o3-mini]
+        chatLlm[OpenAI Chat - chatgpt-4o-latest]
+    end
+
+    subgraph StateGraph["LangGraph State Workflow"]
+        subgraph Nodes["Workflow Nodes"]
+            taskExpert[Task Expert]
+            hintAgent[Hint Agent]
+            planner[Planner]
+            agent[Execution Agent]
+            replan[Replanner]
+            synthesize[Synthesizer]
+        end
+
+        subgraph StateTransitions["State Transitions"]
+            startNode[START]
+            endNode[END]
+            conditionalEdge{Should End?}
+        end
+    end
+
+    subgraph Tools["Tool Set"]
+        subgraph MemoryTools["Memory Tools"]
+            manageMemory[Manage Memory Tool]
+            searchMemory[Search Memory Tool]
+        end
+        
+        subgraph TaskTools["Task-specific Tools"]
+            fetchEnvVars[Fetch Environment Variables]
+            fetchEnvVarValue[Fetch Environment Variable Value]
+            shellTool[Shell Tool]
+        end
+        
+        subgraph HintTools["Hint Tools"]
+            fetchHintFiles[Fetch Hint Files]
+            fetchHintFile[Fetch Hint File]
+        end
+    end
+
+    subgraph StateDefinition["State Definition"]
+        planExecuteState[PlanExecute TypedDict]
+    end
+
+    subgraph Components["Helper Components"]
+        ragStore[RAG Store]
+        brewsearchWorkflow[Brewsearch State Workflow]
+    end
+
+    %% Connections
+    UI --> initMemzoApi
+    initMemzoApi --> projectConfig
+    initMemzoApi --> memoryCache
+    initMemzoApi --> graphRagLocal
+    initMemzoApi --> LLMComponents
+    initMemzoApi --> StateGraph
+
+    startNode --> taskExpert
+    taskExpert --> hintAgent
+    hintAgent --> planner
+    planner --> agent
+    agent --> replan
+    replan --> conditionalEdge
+    conditionalEdge -->|"response exists"| synthesize
+    conditionalEdge -->|"no response"| agent
+    synthesize --> endNode
+
+    taskExpert --> Task
+    planner --> Plan
+    replan --> Act
+    synthesize --> Response
+
+    taskExpert -.->|uses| llmMini
+    hintAgent -.->|uses| llmMini
+    planner -.->|uses| reasoningLlm
+    agent -.->|uses| llm
+    replan -.->|uses| reasoningLlm
+    synthesize -.->|uses| chatLlm
+
+    taskExpert -.->|input/output| planExecuteState
+    hintAgent -.->|input/output| planExecuteState
+    planner -.->|input/output| planExecuteState
+    agent -.->|input/output| planExecuteState
+    replan -.->|input/output| planExecuteState
+    synthesize -.->|input/output| planExecuteState
+
+    hintAgent -.->|uses| HintTools
+    agent -.->|uses| MemoryTools
+    agent -.->|uses| TaskTools
+    planner -.->|uses| ragStore
+
+    ragStore -.->|uses| brewsearchWorkflow
+    
+    classDef llm fill:#f9d5e5,stroke:#333,stroke-width:1px;
+    classDef state fill:#d5f9e5,stroke:#333,stroke-width:1px;
+    classDef tool fill:#d5e5f9,stroke:#333,stroke-width:1px;
+    classDef model fill:#f9e5d5,stroke:#333,stroke-width:1px;
+    classDef component fill:#e5d5f9,stroke:#333,stroke-width:1px;
+    
+    class LLMComponents llm;
+    class StateGraph state;
+    class Tools tool;
+    class StateDefinition model;
+    class Components component;

@@ -1,0 +1,134 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  Chicory - Customer cross-account IAM role for AWS DataZone integration.
+  Supports ReadOnly and ReadWrite access levels with ExternalId safeguard.
+
+Parameters:
+  ChicoryAccountId:
+    Type: String
+    Description: Chicory AWS Account ID that will assume this role.
+  ExternalId:
+    Type: String
+    Description: External ID provided by Chicory for this project. Example chicory-<project-uuid>.
+  RoleName:
+    Type: String
+    Default: DataZoneAccessRoleForChicory
+    Description: IAM role name to create.
+  AccessLevel:
+    Type: String
+    AllowedValues:
+      - ReadOnly
+      - ReadWrite
+    Default: ReadOnly
+    Description: DataZone access level granted to Chicory.
+  ResourceArns:
+    Type: CommaDelimitedList
+    Default: "arn:aws:datazone:*:*:*"
+    Description: Comma-separated ARNs to scope permissions. Keep defaults for all DataZone resources.
+
+Conditions:
+  IsReadOnly: !Equals [!Ref AccessLevel, "ReadOnly"]
+  IsReadWrite: !Equals [!Ref AccessLevel, "ReadWrite"]
+
+Resources:
+  ChicoryDataZoneAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      Description: >
+        Cross-account IAM role granting Chicory AWS DataZone access with ExternalId safeguard.
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${ChicoryAccountId}:root
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Ref ExternalId
+      Tags:
+        - Key: Vendor
+          Value: Chicory
+        - Key: ExternalId
+          Value: !Ref ExternalId
+
+  ChicoryDataZoneReadOnlyPolicy:
+    Condition: IsReadOnly
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: ChicoryDataZoneReadOnly
+      Roles:
+        - !Ref ChicoryDataZoneAccessRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DataZoneReadAccess
+            Effect: Allow
+            Action:
+              - datazone:GetDomain
+              - datazone:ListDomains
+              - datazone:GetProject
+              - datazone:ListProjects
+              - datazone:GetEnvironment
+              - datazone:ListEnvironments
+              - datazone:GetEnvironmentProfile
+              - datazone:ListEnvironmentProfiles
+              - datazone:GetDataSource
+              - datazone:ListDataSources
+              - datazone:GetAsset
+              - datazone:GetAssetType
+              - datazone:GetFormType
+              - datazone:GetListing
+              - datazone:SearchListings
+              - datazone:ListAssetRevisions
+              - datazone:GetGlossary
+              - datazone:GetGlossaryTerm
+            Resource: !Ref ResourceArns
+
+  ChicoryDataZoneReadWritePolicy:
+    Condition: IsReadWrite
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: ChicoryDataZoneReadWrite
+      Roles:
+        - !Ref ChicoryDataZoneAccessRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DataZoneReadAccess
+            Effect: Allow
+            Action:
+              - datazone:GetDomain
+              - datazone:ListDomains
+              - datazone:GetProject
+              - datazone:ListProjects
+              - datazone:GetEnvironment
+              - datazone:ListEnvironments
+              - datazone:GetEnvironmentProfile
+              - datazone:ListEnvironmentProfiles
+              - datazone:GetDataSource
+              - datazone:ListDataSources
+              - datazone:GetAsset
+              - datazone:GetAssetType
+              - datazone:GetFormType
+              - datazone:GetListing
+              - datazone:SearchListings
+              - datazone:ListAssetRevisions
+              - datazone:GetGlossary
+              - datazone:GetGlossaryTerm
+            Resource: !Ref ResourceArns
+          - Sid: DataZoneWriteAccess
+            Effect: Allow
+            Action:
+              - datazone:CreateFormType
+              - datazone:CreateAssetType
+            Resource: !Ref ResourceArns
+
+Outputs:
+  RoleArn:
+    Description: ARN of the created Chicory DataZone cross-account role
+    Value: !GetAtt ChicoryDataZoneAccessRole.Arn
+  AccessLevelSelected:
+    Description: Access level granted by this deployment
+    Value: !Ref AccessLevel
