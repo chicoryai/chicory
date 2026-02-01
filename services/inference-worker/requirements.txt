@@ -24,18 +24,19 @@ slack-sdk>=3.34.0,<4.0.0
 # -----------------------------------------------------------------------------
 # MCP/Claude Integration
 # -----------------------------------------------------------------------------
-langchain-mcp-adapters==0.1.9
 claude-agent-sdk>=0.1.0
+# langchain-mcp-adapters - REMOVED: Using Claude SDK directly for MCP
 
 # -----------------------------------------------------------------------------
-# LangGraph/LangChain (for workflow orchestration)
+# LangGraph/LangChain - REMOVED (Claude Agent SDK consolidation)
+# See: .claude/plans/zany-honking-gem.md
 # -----------------------------------------------------------------------------
-langgraph>=0.2.0
-langsmith>=0.1.0
-langchain>=0.3.0,<0.4.0
-langchain-core>=0.3.0,<0.4.0
-langchain-anthropic>=0.3.0,<0.4.0
-langchain-openai>=0.3.0,<0.4.0
+# langgraph>=0.2.0          # REMOVED: Replaced by ClaudeAgentRunner
+# langsmith>=0.1.0          # REMOVED: Using Phoenix for tracing
+# langchain>=0.3.0          # REMOVED: Using Claude SDK directly
+# langchain-core>=0.3.0     # REMOVED: Using Claude SDK directly
+# langchain-anthropic>=0.3.0 # REMOVED: Using Claude SDK directly
+# langchain-openai>=0.3.0   # REMOVED: Going Claude-only
 
 # -----------------------------------------------------------------------------
 # Common Dependencies
@@ -47,7 +48,7 @@ pydantic-settings>=2.1.0,<3.0.0
 python-dotenv>=1.0.0
 httpx>=0.27.0,<1.0.0
 anthropic>=0.40.0
-tiktoken>=0.8.0
+# tiktoken>=0.8.0           # REMOVED: OpenAI tokenizer not needed with Claude
 
 # -----------------------------------------------------------------------------
 # AWS

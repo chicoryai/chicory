@@ -1,0 +1,73 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "chicory-worker-common"
+version = "0.1.0"
+description = "Shared utilities for Chicory worker services (inference and training)"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+authors = [
+    { name = "Chicory AI", email = "engineering@chicory.ai" }
+]
+
+dependencies = [
+    "chicory-common>=0.1.0",
+    "pydantic>=2.5.0,<3.0.0",
+    "pydantic-settings>=2.1.0,<3.0.0",
+]
+
+[project.optional-dependencies]
+cache = [
+    "redis>=5.0.0,<6.0.0",
+]
+loaders = [
+    "unstructured>=0.10.0",
+    "pypdf>=3.0.0",
+    "beautifulsoup4>=4.12.0",
+    "lxml>=4.9.0",
+    "chardet>=5.0.0",
+]
+integration = [
+    "boto3>=1.34.0",
+    "sqlalchemy>=2.0.0",
+    "httpx>=0.27.0",
+]
+claude = [
+    "claude-agent-sdk>=0.1.0",
+    "anthropic>=0.40.0",
+]
+all = [
+    "chicory-worker-common[cache,loaders,integration,claude]",
+]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.7.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["chicory_worker_common"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311", "py312"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

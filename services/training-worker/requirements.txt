@@ -48,14 +48,14 @@ azure-identity>=1.15.0
 azure-storage-blob>=12.20.0
 azure-mgmt-datafactory>=9.0.0
 
-# LangChain (for web scraping tools)
-langchain-community>=0.3.0,<0.4.0
+# LangChain - REMOVED (Claude Agent SDK consolidation)
+# langchain-community>=0.3.0  # REMOVED: Using unstructured directly for document loading
 
 # Utilities
 msgpack>=1.0.0
 gitpython>=3.1.40
-eralchemy>=1.5.0
-graphviz>=0.20.0
+# eralchemy>=1.5.0            # REMOVED: GraphRAG related
+# graphviz>=0.20.0            # REMOVED: GraphRAG related
 tqdm>=4.66.0
-tiktoken>=0.8.0
+# tiktoken>=0.8.0             # REMOVED: OpenAI tokenizer not needed with Claude
 anthropic>=0.40.0
