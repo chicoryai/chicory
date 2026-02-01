@@ -7,14 +7,15 @@ from typing import Dict, Any, List, Union, Optional, Callable, Awaitable
 import time
 import boto3
 from botocore.exceptions import ClientError
-from langgraph.constants import END
-from langgraph.graph import StateGraph
-from langsmith import traceable
-
-from services.models.llm_orchestrator import LLMOrchestrator
-from services.workflows.data_understanding.hybrid_rag.model.data import GraphStateHybrid
 from datetime import datetime
 
+# NOTE: LangGraph/LangChain removed - using Claude Agent SDK directly
+# from langgraph.constants import END
+# from langgraph.graph import StateGraph
+# from langsmith import traceable
+# from services.models.llm_orchestrator import LLMOrchestrator
+
+from services.workflows.data_understanding.hybrid_rag.model.data import GraphStateHybrid
 from services.customer.personalization import get_project_config
 from services.utils.logger import logger
 
@@ -46,6 +47,32 @@ except ImportError:
 
 SEED = int(os.environ.get("SEED", "101"))
 MAX_TOKENS = 100_000
+
+
+def _get_s3_client():
+    """Create S3 client with optional custom endpoint (MinIO, LocalStack, etc.)
+
+    Works for both:
+    - AWS S3 (cloud): Uses default credentials chain (IAM role, env vars, etc.)
+    - MinIO (local): Uses S3_ENDPOINT_URL with explicit credentials
+    """
+    region = os.environ.get("AWS_REGION", "us-west-2")
+    endpoint_url = os.environ.get("S3_ENDPOINT_URL")
+
+    client_kwargs = {
+        'region_name': region,
+    }
+
+    # Add endpoint URL if specified (for MinIO or other S3-compatible storage)
+    if endpoint_url:
+        client_kwargs['endpoint_url'] = endpoint_url
+        # Explicit credentials needed for MinIO
+        client_kwargs['aws_access_key_id'] = os.environ.get('AWS_ACCESS_KEY_ID', '')
+        client_kwargs['aws_secret_access_key'] = os.environ.get('AWS_SECRET_ACCESS_KEY', '')
+        logger.info(f"Using custom S3 endpoint: {endpoint_url}")
+
+    return boto3.client("s3", **client_kwargs)
+
 
 DEFAULT_ERROR_MESSAGE = (
     "I'm sorry, but something went wrong while processing your request. "
@@ -119,8 +146,9 @@ class LLMAgentArchitecture:
             if self.config.get("phoenix_project"):
                 os.environ["PHOENIX_PROJECT_NAME"] = self.config["phoenix_project"]
 
-            # Initialize orchestrator (critical path)
-            self.orchestrator = LLMOrchestrator(project=self.project, global_seed=SEED)
+            # NOTE: LLMOrchestrator removed - using Claude Agent SDK directly
+            # self.orchestrator = LLMOrchestrator(project=self.project, global_seed=SEED)
+            self.orchestrator = None  # Not needed with Claude SDK
 
             # Get project config (critical path)
             self.project_config = get_project_config(self.project)
@@ -131,9 +159,12 @@ class LLMAgentArchitecture:
             # MCP tools are now pre-configured, no initialization needed
             self.init_time = 0
 
-            # Create agent
+            # Create agent options (Claude SDK)
             await self._create_action_agent_options()
-            self._create_graph_workflow()
+
+            # NOTE: LangGraph workflow removed - using direct Claude SDK calls
+            # self._create_graph_workflow() is now simplified
+            self._setup_workflow()
 
             self.load_time = time.time() - start_time
             logger.info(f"Agent initialized in {self.load_time:.2f}s (tools: {self.init_time:.2f}s)")
@@ -610,8 +641,21 @@ class LLMAgentArchitecture:
                     logger.warning(f"Failed to fetch tools from MCP server {server_name}: {e}")
 
         logger.info(f"Final allowed_tools: {allowed_tools}")
-        logger.info(f"Total MCP tools for permissions: {len(all_mcp_tools)}")
-        
+        logger.info(f"Total MCP tools discovered: {len(all_mcp_tools)}")
+
+        # Build wildcard permission patterns for each MCP server
+        # Using wildcards (mcp__server__*) instead of listing individual tools
+        # ensures all tools from configured servers are auto-approved
+        mcp_server_permission_patterns = []
+        for server_name in mcp_servers.keys():
+            # Normalize server name (replace spaces/dashes with underscores)
+            normalized_name = server_name.replace(' ', '_').replace('-', '_')
+            pattern = f"mcp__{normalized_name}__*"
+            mcp_server_permission_patterns.append(pattern)
+            logger.info(f"Added MCP permission wildcard pattern: {pattern}")
+
+        logger.info(f"MCP server permission patterns: {mcp_server_permission_patterns}")
+
         # Configure subagents for specialized tasks
         subagents = {
             "reader": AgentDefinition(
@@ -811,9 +855,9 @@ For refused execution:
         }
         
         # Configure Claude Code options with strict directory and write restrictions
-        # Build MCP tool permissions (explicit list, not wildcards)
-        mcp_tool_permissions = [f'"{tool}"' for tool in all_mcp_tools]
-        mcp_permissions_str = ",\n                    ".join(mcp_tool_permissions) if mcp_tool_permissions else ""
+        # Build MCP server permission patterns (wildcards to auto-approve all tools from each server)
+        mcp_permissions_list = [f'"{pattern}"' for pattern in mcp_server_permission_patterns]
+        mcp_permissions_str = ",\n                    ".join(mcp_permissions_list) if mcp_permissions_list else ""
         
         settings_json = f"""
         {{
@@ -1259,17 +1303,16 @@ Original request: {user_prompt}
             logger.warning(f"Failed to inject environment variables into settings: {e}")
             return options  # Return original options on failure
 
-    @traceable(
-        run_type="llm",
-        project_name="claude_code_sdk"
-    )
+    # NOTE: @traceable decorator removed - langsmith is no longer used
+    # Use Phoenix for tracing if needed
     async def _invoke_claude_agent(self, level, user_prompt, options):
-        # You can also set the name programmatically within the function
-        from langsmith.run_helpers import get_current_run_tree
-        run = get_current_run_tree()
-        if run:
-            run.name = level.lower()
+        """Invoke Claude Code SDK with the given prompt and options.
 
+        Args:
+            level: Log level identifier (e.g., 'MAIN_AGENT')
+            user_prompt: The prompt to send to Claude
+            options: ClaudeAgentOptions configuration
+        """
         logger.info("Starting Claude Code query execution...")
         query_start_time = time.time()
         
@@ -1508,24 +1551,41 @@ Original request: {user_prompt}
             return DEFAULT_ERROR_MESSAGE, messages
 
 
+    def _setup_workflow(self):
+        """Initialize workflow (replaces LangGraph StateGraph).
+
+        NOTE: LangGraph removed - using direct Claude SDK calls.
+        The workflow_app is set to a marker object for backward compatibility checks.
+        """
+        self.workflow_app = True  # Marker for "initialized"
+        logger.info("Workflow initialized (Claude SDK direct mode)")
+
     def _create_graph_workflow(self):
-        """Create the StateGraph workflow with agent execution and synthesis."""
+        """DEPRECATED: Use _setup_workflow instead. Kept for reference.
 
-        async def agent_action(state: GraphStateHybrid) -> GraphStateHybrid:
-            """Main agent - Generate and format final response using Claude Code SDK with enriched context."""
-            logger.info("---MAIN AGENT - CLAUDE CODE EXECUTION WITH OUTPUT FORMATTING---")
+        NOTE: This method is no longer called. The StateGraph has been replaced
+        with direct Claude SDK calls in _execute_agent().
+        """
+        pass  # No longer used
 
-            question = state["question"]
-            context = state["context"]
-            output_format = state['output_format']
-            prev_messages = state["messages"]
+    async def _execute_agent(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """Main agent - Generate and format final response using Claude Code SDK with enriched context.
 
-            # Helper function to save messages and return state
-            async def save_and_return(final_messages: List[Dict[str, Any]], generation_text: str) -> Dict[str, Any]:
-                # Validate final_messages is a list
-                if not isinstance(final_messages, list):
-                    logger.error(f"final_messages is not a list, got type: {type(final_messages)}. Converting to list.")
-                    final_messages = [] if final_messages is None else [final_messages]
+        This method replaces the LangGraph agent_action inner function.
+        """
+        logger.info("---MAIN AGENT - CLAUDE CODE EXECUTION WITH OUTPUT FORMATTING---")
+
+        question = state["question"]
+        context = state["context"]
+        output_format = state.get('output_format', '')
+        prev_messages = state.get("messages", [])
+
+        # Helper function to save messages and return state
+        async def save_and_return(final_messages: List[Dict[str, Any]], generation_text: str) -> Dict[str, Any]:
+            # Validate final_messages is a list
+            if not isinstance(final_messages, list):
+                logger.error(f"final_messages is not a list, got type: {type(final_messages)}. Converting to list.")
+                final_messages = [] if final_messages is None else [final_messages]
                 
                 # Save all messages to S3
                 try:
@@ -1697,31 +1757,20 @@ CRITICAL IDENTITY RULES:
                 
                 return await save_and_return(final_messages, user_safe_message)
 
-        # Build Graph
-        workflow = StateGraph(GraphStateHybrid)
-
-        # Single node workflow - agent handles both generation and formatting
-        workflow.add_node("agent_node", agent_action)
-
-        workflow.set_entry_point("agent_node")
-        workflow.add_edge("agent_node", END)
-
-        # Compile workflow
-        self.workflow_app = workflow.compile()
-
     # ========================================================================
     # PUBLIC API METHODS
     # ========================================================================
 
     def get_graph(self, xray=True):
-        """Get Graph via Langgraph Application"""
-        if self.workflow_app:
-            return self.workflow_app.get_graph(xray=xray)
-        else:
-            raise RuntimeError("No graph available. Initialize the agent first.")
+        """DEPRECATED: LangGraph removed. Returns None for compatibility."""
+        logger.warning("get_graph() is deprecated - LangGraph has been removed")
+        return None
 
     def invoke(self, query: str, thread_id: str = None) -> Dict[str, Any]:
-        """Invoke the workflow with a query."""
+        """Invoke the workflow with a query.
+
+        NOTE: Now uses direct Claude SDK calls instead of LangGraph workflow.
+        """
         if not self.workflow_app:
             raise RuntimeError("Workflow not initialized. Call initialize() first.")
 
@@ -1735,15 +1784,22 @@ CRITICAL IDENTITY RULES:
             }
         }
 
-        # Use the workflow instead of direct agent
-        return self.workflow_app.invoke(
-            {"question": query, "context": "", "messages": [], "generation": ""},
-            config=config
-        )
+        # Store runtime config
+        self.runtime_config = config
 
-    def astream(self, input: dict = None, config: dict = None, cancellation_check: Optional[Callable[[], Awaitable[bool]]] = None):
+        # Use asyncio to run the async method
+        import asyncio
+        state = {"question": query, "context": "", "messages": [], "generation": "", "output_format": ""}
+        result = asyncio.get_event_loop().run_until_complete(self._execute_agent(state))
+        return result
+
+    async def astream(self, input: dict = None, config: dict = None, cancellation_check: Optional[Callable[[], Awaitable[bool]]] = None):
         """Async Stream the workflow response.
-        
+
+        NOTE: Now uses direct Claude SDK calls instead of LangGraph workflow.
+        Yields dictionaries in the same format as LangGraph for backward compatibility:
+        {"agent_node": {"generation": str, "messages": list, ...}}
+
         Args:
             input: Input dictionary with question, context, etc.
             config: Configuration dictionary with thread_id, etc.
@@ -1764,25 +1820,33 @@ CRITICAL IDENTITY RULES:
 
         # Store the runtime config for use throughout the workflow
         self.runtime_config = config
-        
+
         # Store the cancellation callback and reset rate limiting timer
         self.cancellation_check = cancellation_check
         self._last_cancel_check = 0  # Reset to ensure first check happens immediately
 
-        return self.workflow_app.astream(
-            {
-                "question": input["question"] if "question" in input else "",
-                "context_flag": input["context_flag"] if "context_flag" in input else True,
-                "context": input["context"] if "context" in input else "",
-                "messages": [],
-                "generation": "",
-                "output_format": input["output_format"] if "output_format" in input else ""
-            },
-            config=config
-        )
+        # Build state from input
+        state = {
+            "question": input.get("question", "") if input else "",
+            "context_flag": input.get("context_flag", True) if input else True,
+            "context": input.get("context", "") if input else "",
+            "messages": [],
+            "generation": "",
+            "output_format": input.get("output_format", "") if input else ""
+        }
+
+        # Execute agent directly (replaces LangGraph workflow)
+        result = await self._execute_agent(state)
+
+        # Yield result in LangGraph-compatible format
+        yield {"agent_node": result}
 
     def stream(self, input: dict = None, config: dict = None):
-        """Stream the workflow response."""
+        """Stream the workflow response.
+
+        NOTE: Now uses direct Claude SDK calls instead of LangGraph workflow.
+        Uses asyncio to wrap the async execution.
+        """
         if not self.workflow_app:
             raise RuntimeError("Workflow not initialized. Call initialize() first.")
 
@@ -1795,17 +1859,23 @@ CRITICAL IDENTITY RULES:
                 }
             }
 
-        return self.workflow_app.stream(
-            {
-                "question": input["question"] if "question" in input else "",
-                "context_flag": input["context_flag"] if "context_flag" in input else True,
-                "context": input["context"] if "context" in input else "",
-                "messages": [],
-                "generation": "",
-                "output_format": input["output_format"] if "output_format" in input else ""
-            },
-            config=config
-        )
+        # Store runtime config
+        self.runtime_config = config
+
+        # Build state
+        state = {
+            "question": input.get("question", "") if input else "",
+            "context_flag": input.get("context_flag", True) if input else True,
+            "context": input.get("context", "") if input else "",
+            "messages": [],
+            "generation": "",
+            "output_format": input.get("output_format", "") if input else ""
+        }
+
+        # Execute and yield result in LangGraph-compatible format
+        import asyncio
+        result = asyncio.get_event_loop().run_until_complete(self._execute_agent(state))
+        yield {"agent_node": result}
 
     async def save_messages_to_s3(self, messages: List[Any]) -> bool:
         """Save messages to S3 with retry logic and enhanced error handling."""
@@ -1814,13 +1884,13 @@ CRITICAL IDENTITY RULES:
         
         for attempt in range(max_retries):
             try:
-                s3_client = boto3.client('s3')
+                s3_client = _get_s3_client()
                 bucket_name = os.environ.get('TASK_AUDIT_TRAIL_S3_BUCKET_NAME')
-                
+
                 if not bucket_name:
                     logger.warning("TASK_AUDIT_TRAIL_S3_BUCKET_NAME environment variable not set, skipping S3 save")
                     return False
-                
+
                 # Use assistant_task_id for S3 key path
                 assistant_task_id = self.runtime_config["configurable"]["assistant_task_id"]
                 s3_key = f"{self.project.lower()}/{self.agent_id.lower()}/{assistant_task_id}/messages.json"
@@ -1890,8 +1960,8 @@ CRITICAL IDENTITY RULES:
             if not artifact_files:
                 logger.info("No artifacts found in working directory")
                 return True
-            
-            s3_client = boto3.client('s3')
+
+            s3_client = _get_s3_client()
             uploaded_count = 0
             
             # Upload each artifact
