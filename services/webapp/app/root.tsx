@@ -10,10 +10,16 @@ import {
 } from "@remix-run/react";
 import type { LinksFunction, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { RevalidateSession } from "@propelauth/remix/client";
+
+// Import RevalidateSession from our auth packages
+// For PropelAuth mode, this re-exports @propelauth/remix/client
+// For local auth mode, this is a no-op component
+import { RevalidateSession as PropelAuthRevalidateSession } from "@chicory/auth-propelauth/client";
+import { RevalidateSession as LocalRevalidateSession } from "@chicory/auth-core/client";
 
 import { ThemeProvider } from "~/contexts/theme-context";
 import { getTheme } from "~/utils/theme.server";
+import { isCloudAuth } from "~/auth/auth.server";
 import "./tailwind.css";
 
 export const links: LinksFunction = () => [
@@ -39,12 +45,20 @@ export const links: LinksFunction = () => [
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const theme = await getTheme(request);
-  return json({ theme });
+  const useCloudAuth = isCloudAuth();
+  return json({ theme, useCloudAuth });
 }
 
 type LoaderData = {
   theme: string | null;
+  useCloudAuth: boolean;
 };
+
+// Select the appropriate RevalidateSession component based on auth provider
+// This is determined at build/startup time via environment variable
+const RevalidateSession = process.env.AUTH_PROVIDER === 'propelauth'
+  ? PropelAuthRevalidateSession
+  : LocalRevalidateSession;
 
 export function Layout({ children }: { children: React.ReactNode }) {
   // Don't use useLoaderData in Layout - it's called for both success and error cases
