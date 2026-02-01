@@ -1,0 +1,14 @@
+{
+  "name": "chicory",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "services/webapp"
+  ],
+  "scripts": {
+    "build:packages": "yarn workspace @chicory/auth-core build && yarn workspace @chicory/auth-propelauth build",
+    "dev:webapp": "yarn workspace webapp dev"
+  },
+  "packageManager": "yarn@1.22.22"
+}
