@@ -259,3 +259,99 @@ class CSVLoader:
                 documents.append(Document(page_content=content, metadata=metadata))
 
         return documents
+
+
+class PythonLoader:
+    """Python source file loader."""
+
+    def __init__(
+        self,
+        file_path: str,
+        encoding: Optional[str] = None,
+    ):
+        self.file_path = file_path
+        self.encoding = encoding
+
+    def load(self) -> List[Document]:
+        """Load the Python file."""
+        path = Path(self.file_path)
+        if not path.exists():
+            raise FileNotFoundError(f"File not found: {self.file_path}")
+
+        with open(path, "r", encoding=self.encoding or "utf-8") as f:
+            content = f.read()
+
+        return [
+            Document(
+                page_content=content,
+                metadata={
+                    "source": str(path),
+                    "filename": path.name,
+                    "language": "python",
+                },
+            )
+        ]
+
+
+class MarkdownLoader:
+    """Markdown file loader."""
+
+    def __init__(
+        self,
+        file_path: str,
+        encoding: Optional[str] = None,
+    ):
+        self.file_path = file_path
+        self.encoding = encoding
+
+    def load(self) -> List[Document]:
+        """Load the Markdown file."""
+        path = Path(self.file_path)
+        if not path.exists():
+            raise FileNotFoundError(f"File not found: {self.file_path}")
+
+        with open(path, "r", encoding=self.encoding or "utf-8") as f:
+            content = f.read()
+
+        return [
+            Document(
+                page_content=content,
+                metadata={
+                    "source": str(path),
+                    "filename": path.name,
+                    "file_type": "markdown",
+                },
+            )
+        ]
+
+
+class RSTLoader:
+    """reStructuredText file loader."""
+
+    def __init__(
+        self,
+        file_path: str,
+        encoding: Optional[str] = None,
+    ):
+        self.file_path = file_path
+        self.encoding = encoding
+
+    def load(self) -> List[Document]:
+        """Load the RST file."""
+        path = Path(self.file_path)
+        if not path.exists():
+            raise FileNotFoundError(f"File not found: {self.file_path}")
+
+        with open(path, "r", encoding=self.encoding or "utf-8") as f:
+            content = f.read()
+
+        return [
+            Document(
+                page_content=content,
+                metadata={
+                    "source": str(path),
+                    "filename": path.name,
+                    "file_type": "rst",
+                },
+            )
+        ]

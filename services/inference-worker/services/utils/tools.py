@@ -20,7 +20,6 @@ import numpy as np
 import ssl
 
 from bs4 import BeautifulSoup
-from langchain_community.document_transformers import BeautifulSoupTransformer
 from datetime import datetime, UTC
 
 from services.integration.sqlalchemy_engine import run_query
@@ -34,15 +33,35 @@ except AttributeError:
 else:
     ssl._create_default_https_context = _create_unverified_https_context
 
-from langchain_community.document_loaders import TextLoader, CSVLoader, PythonLoader, JSONLoader, \
-    WebBaseLoader, PyPDFLoader, \
-    AsyncHtmlLoader, UnstructuredPowerPointLoader, UnstructuredExcelLoader, UnstructuredMarkdownLoader, \
-    UnstructuredRSTLoader
-from langchain_community.document_loaders.base import BaseLoader
-from langchain_community.document_loaders import AsyncChromiumLoader
-from langchain_core.documents import Document
-from typing import Dict, Any
+# Document loaders - using worker-common package (replaces LangChain)
+from chicory_worker_common.loaders import (
+    Document,
+    BaseLoader,
+    TextLoader,
+    CSVLoader,
+    PythonLoader,
+    JSONLoader,
+    PDFLoader,
+    UnstructuredLoader,
+    MarkdownLoader,
+    RSTLoader,
+    WebLoader,
+    AsyncWebLoader,
+    RawHtmlLoader,
+    BeautifulSoupTransformer,
+)
+from typing import Dict, Any, List, Protocol
 from urllib.parse import urlparse
+
+
+# Backwards compatibility aliases
+UnstructuredPowerPointLoader = UnstructuredLoader
+UnstructuredExcelLoader = UnstructuredLoader
+UnstructuredMarkdownLoader = MarkdownLoader
+UnstructuredRSTLoader = RSTLoader
+WebBaseLoader = WebLoader
+AsyncHtmlLoader = AsyncWebLoader
+PyPDFLoader = PDFLoader
 
 
 class GraphTextLoader(BaseLoader):
@@ -120,7 +139,8 @@ def is_url(path):
 
 
 async def url_loader_async(url_list) -> Any:
-    loader = AsyncHtmlLoader(url_list)
+    """Load URLs asynchronously using aiohttp."""
+    loader = AsyncWebLoader(url_list)
     docs = await loader.aload()
     return docs
 
@@ -133,17 +153,27 @@ def add_line_breaks(text):
 
 
 async def url_loader_chrom(url_list) -> Any:
-    loader = AsyncChromiumLoader(url_list)
+    """
+    Load URLs asynchronously.
+
+    NOTE: Previously used Chromium for JavaScript rendering (LangChain AsyncChromiumLoader).
+    Now uses aiohttp which does not render JavaScript. For JS-heavy pages,
+    consider using a browser automation tool like Playwright directly.
+    """
+    logger.warning(
+        "url_loader_chrom now uses aiohttp instead of Chromium. "
+        "JavaScript-rendered content will not be captured."
+    )
+    loader = RawHtmlLoader(url_list)
     return await loader.aload()
 
 
 def url_loader(url_list) -> Any:
+    """Load URLs synchronously using requests."""
     docs = []
     for url in url_list:
         if is_url(url):
-            # document = load_document(url, WebBaseLoader)
-            loader = WebBaseLoader(url)
-            loader.requests_kwargs = {'verify': False}
+            loader = WebLoader(url, verify_ssl=False)
             int_docs = loader.load()
             docs.append(int_docs)
     return docs
