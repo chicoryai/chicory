@@ -1,6 +1,6 @@
 
 # MCP Server Requirements
-fastmcp==2.13.0
+fastmcp==2.14.4
 aiohttp==3.12.14
 requests==2.32.4
 pydantic==2.11.7
