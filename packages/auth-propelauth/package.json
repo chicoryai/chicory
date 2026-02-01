@@ -1,0 +1,37 @@
+{
+  "name": "@chicory/auth-propelauth",
+  "version": "0.1.0",
+  "description": "PropelAuth authentication for Chicory Cloud",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "import": "./dist/client/index.js",
+      "require": "./dist/client/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@propelauth/node": "^2.1.32",
+    "@propelauth/remix": "^0.4.5"
+  },
+  "peerDependencies": {
+    "@chicory/auth-core": "^0.1.0",
+    "@remix-run/node": "^2.0.0",
+    "react": "^18.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  },
+  "license": "MIT"
+}
