@@ -376,7 +376,7 @@ jobs:
 
       - name: Build Backend API
         if: needs.changes.outputs.backend-api == 'true' || needs.changes.outputs.docker == 'true'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: services/backend-api/Dockerfile
@@ -386,7 +386,7 @@ jobs:
 
       - name: Build Webapp
         if: needs.changes.outputs.webapp == 'true' || needs.changes.outputs.docker == 'true'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: services/webapp/Dockerfile
@@ -396,7 +396,7 @@ jobs:
 
       - name: Build Agent Service
         if: needs.changes.outputs.agent-service == 'true' || needs.changes.outputs.docker == 'true'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: services/agent-service/Dockerfile
@@ -491,7 +491,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build and push Backend API
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: services/backend-api/Dockerfile
@@ -503,7 +503,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build and push Webapp
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: services/webapp/Dockerfile
@@ -515,7 +515,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build and push Agent Service
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: services/agent-service/Dockerfile
@@ -527,7 +527,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build and push DB MCP Server
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: services/db-mcp-server/Dockerfile
@@ -539,7 +539,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build and push Tools MCP Server
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: services/tools-mcp-server/Dockerfile
@@ -551,7 +551,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build and push Training Worker
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: services/training-worker/Dockerfile
@@ -563,7 +563,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Build and push Inference Worker
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: services/inference-worker/Dockerfile
