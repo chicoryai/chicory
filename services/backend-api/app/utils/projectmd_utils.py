@@ -4,19 +4,10 @@ import logging
 from typing import Optional
 from botocore.exceptions import ClientError
 from fastapi import HTTPException, status
-from typing import Optional
 from .s3_utils import get_s3_client
 
 # Configure logging
 logger = logging.getLogger(__name__)
-
-def get_documentation_agent_id() -> Optional[str]:
-    """Get the documentation agent ID from environment variable"""
-    return os.getenv("DOCUMENTATION_AGENT_ID")
-
-def get_documentation_agent_project_id() -> Optional[str]:
-    """Get the documentation agent project ID from environment variable"""
-    return os.getenv("DOCUMENTATION_AGENT_PROJECT_ID")
 
 
 async def upload_projectmd_to_s3(project_md_content: str, project_id: str, training_id: str) -> str:

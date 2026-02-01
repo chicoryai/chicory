@@ -114,7 +114,7 @@ class InferenceJobManager:
     def sync_project_data_from_s3(self, project_id: str) -> bool:
         """
         Sync project-specific data from S3/MinIO to local filesystem.
-        Downloads files from artifacts/{project_id}/ to /app/data/{project_id}/
+        Downloads files from {project_id}/ to /app/data/{project_id}/
 
         Args:
             project_id: The project ID to sync data for
@@ -128,8 +128,8 @@ class InferenceJobManager:
                 logger.warning("S3_BUCKET not set, skipping S3 sync")
                 return False
 
-            # S3 prefix for project data
-            s3_prefix = f"artifacts/{project_id}/"
+            # S3 prefix for project data (training worker stores at {project_id}/)
+            s3_prefix = f"{project_id}/"
 
             # Local destination - use /app/data/{project_id} structure
             local_base = os.getenv("CONTEXT_DIR", "/app/data")
@@ -157,7 +157,7 @@ class InferenceJobManager:
                     if key.endswith('/'):
                         continue
 
-                    # Calculate relative path (remove the artifacts/{project_id}/ prefix)
+                    # Calculate relative path (remove the {project_id}/ prefix)
                     relative_path = key[len(s3_prefix):]
                     if not relative_path:
                         continue

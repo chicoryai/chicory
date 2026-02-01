@@ -147,9 +147,6 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
       AWS_REGION: ${AWS_REGION:-us-east-1}
       TASK_AUDIT_TRAIL_S3_BUCKET_NAME: ${TASK_AUDIT_TRAIL_S3_BUCKET_NAME:-chicory-audit-trails}
-      # Documentation Agent (for PROJECT.md generation)
-      DOCUMENTATION_AGENT_ID: ${DOCUMENTATION_AGENT_ID}
-      DOCUMENTATION_AGENT_PROJECT_ID: ${DOCUMENTATION_AGENT_PROJECT_ID}
       # MCP Servers
       DB_MCP_SERVER_URL: http://db-mcp-server:8080
       TOOLS_MCP_SERVER_URL: http://tools-mcp-server:8080

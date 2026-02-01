@@ -55,6 +55,7 @@ async def create_project(project: ProjectCreate):
         description=new_project.description,
         api_key=getattr(new_project, 'api_key', None),
         members=new_project.members,
+        documentation_agent_id=getattr(new_project, 'documentation_agent_id', None),
         created_at=new_project.created_at.isoformat(),
         updated_at=new_project.updated_at.isoformat()
     )
@@ -76,6 +77,7 @@ async def get_project(project_id: str):
         description=project.description,
         api_key=getattr(project, 'api_key', None),
         members=project.members,
+        documentation_agent_id=getattr(project, 'documentation_agent_id', None),
         created_at=project.created_at.isoformat(),
         updated_at=project.updated_at.isoformat()
     )
@@ -110,6 +112,7 @@ async def update_project(project_id: str, project_update: ProjectUpdate):
         description=project.description,
         api_key=getattr(project, 'api_key', None),
         members=project.members,
+        documentation_agent_id=getattr(project, 'documentation_agent_id', None),
         created_at=project.created_at.isoformat(),
         updated_at=project.updated_at.isoformat()
     )
@@ -132,6 +135,7 @@ async def list_projects(organization_id: str):
             description=proj.description,
             api_key=getattr(proj, 'api_key', None),
             members=proj.members,
+            documentation_agent_id=getattr(proj, 'documentation_agent_id', None),
             created_at=proj.created_at.isoformat(),
             updated_at=proj.updated_at.isoformat()
         ) for proj in projects

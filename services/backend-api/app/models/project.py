@@ -51,7 +51,8 @@ class Project(BaseModel):
     description: Optional[str] = None
     api_key: Optional[str] = None
     members: List[str] = []
-    
+    documentation_agent_id: Optional[str] = None  # Reference to auto-created documentation agent
+
     class Settings:
         name = "projects"
 
@@ -86,6 +87,7 @@ class ProjectResponse(PydanticBaseModel):
     description: Optional[str] = None
     api_key: Optional[str] = None
     members: List[str]
+    documentation_agent_id: Optional[str] = None
     created_at: str
     updated_at: str
 
