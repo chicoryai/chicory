@@ -772,26 +772,34 @@ class TrainingJobManager:
             
             if not s3_url:
                 raise Exception("No S3 URL found in completed project documentation")
-            
+
             # Parse S3 URL to extract bucket and key
-            # Expected format: https://bucket-name.s3.region.amazonaws.com/key/path
+            # Supports both s3:// format and https:// format
             import re
-            s3_url_pattern = r'https://([^.]+)\.s3\.([^.]+)\.amazonaws\.com/(.+)'
-            match = re.match(s3_url_pattern, s3_url)
-            
-            if not match:
-                raise Exception(f"Invalid S3 URL format: {s3_url}")
-            
-            s3_bucket = match.group(1)
-            s3_region = match.group(2)
-            s3_key = match.group(3)
-            
+            if s3_url.startswith('s3://'):
+                # Format: s3://bucket-name/key/path
+                s3_path = s3_url.replace('s3://', '')
+                parts = s3_path.split('/', 1)
+                if len(parts) != 2:
+                    raise Exception(f"Invalid S3 URL format: {s3_url}")
+                s3_bucket = parts[0]
+                s3_key = parts[1]
+            else:
+                # Legacy format: https://bucket-name.s3.region.amazonaws.com/key/path
+                s3_url_pattern = r'https://([^.]+)\.s3\.([^.]+)\.amazonaws\.com/(.+)'
+                match = re.match(s3_url_pattern, s3_url)
+                if not match:
+                    raise Exception(f"Invalid S3 URL format: {s3_url}")
+                s3_bucket = match.group(1)
+                s3_key = match.group(3)
+
             logger.info(f"Downloading from S3: s3://{s3_bucket}/{s3_key}")
-            
-            # Initialize S3 client using default credential chain (IAM roles, env vars, etc.)
-            # This will automatically use IAM role credentials when running in AWS
-            s3_client = boto3.client('s3', region_name=s3_region)
-            
+
+            # Initialize S3 client with proper endpoint configuration
+            # Works for both MinIO (local) and AWS S3 (cloud)
+            from services.integration.s3_sync import _get_s3_client
+            s3_client = _get_s3_client()
+
             # Download the file content from S3
             try:
                 response = s3_client.get_object(Bucket=s3_bucket, Key=s3_key)

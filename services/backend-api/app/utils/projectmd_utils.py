@@ -48,10 +48,11 @@ async def upload_projectmd_to_s3(project_md_content: str, project_id: str, train
             s3_key,
             ExtraArgs={'ContentType': 'text/markdown'}
         )
-        
-        # Generate S3 URL
-        s3_url = f"https://{s3_bucket}.s3.{s3_region}.amazonaws.com/{s3_key}"
-        
+
+        # Generate S3 URL - use s3:// format for consistency
+        # This works for both MinIO and AWS S3 when downloaded via SDK
+        s3_url = f"s3://{s3_bucket}/{s3_key}"
+
         logger.info(f"Successfully uploaded project.md to S3: {s3_url}")
         return s3_url
         
@@ -65,25 +66,24 @@ async def upload_projectmd_to_s3(project_md_content: str, project_id: str, train
 def generate_s3_url(project_id: str, training_id: str) -> str:
     """
     Generate the expected S3 URL for a project.md file without uploading
-    
+
     Args:
         project_id: Project ID
         training_id: Training ID
-        
+
     Returns:
-        Expected S3 URL
+        Expected S3 URL in s3:// format (works for both MinIO and AWS)
     """
     s3_bucket = os.getenv("S3_BUCKET_NAME")
-    s3_region = os.getenv("AWS_REGION", "us-west-2")
-    
+
     if not s3_bucket:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="S3 bucket not configured"
         )
-    
+
     s3_key = f"artifacts/{project_id}/projectmds/{training_id}/project.md"
-    return f"https://{s3_bucket}.s3.{s3_region}.amazonaws.com/{s3_key}"
+    return f"s3://{s3_bucket}/{s3_key}"
 
 async def download_projectmd_from_s3(project_id: str, training_id: str) -> str:
     """

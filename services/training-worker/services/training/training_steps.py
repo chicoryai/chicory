@@ -38,7 +38,7 @@ async def setup_environment():
     
     # Setup data directories if not in dev mode
     if not dev_mode:
-        data_path = os.getenv("BASE_DIR", os.path.join("/app", "data"))
+        data_path = os.getenv("BASE_DIR", "/data")
         project_path = os.path.join(data_path, os.getenv("PROJECT", "default").lower())
         
         # Clean up directory if it exists
@@ -137,7 +137,7 @@ async def run_preprocessing(config):
 async def run_s3_sync(dev_mode, skip_s3_sync):
     """Sync data back to S3 after completion"""
     if not dev_mode and not skip_s3_sync:
-        data_path = os.getenv("BASE_DIR", os.path.join("/app", "data"))
+        data_path = os.getenv("BASE_DIR", "/data")
         start_time = time.time()
         logger.info("Syncing data back to S3...")
         sync_to_s3_with_delete(data_path)

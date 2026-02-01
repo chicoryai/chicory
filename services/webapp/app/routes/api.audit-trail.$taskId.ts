@@ -3,10 +3,19 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import type { TrailItem } from "~/types/auditTrail";
 
-// Initialize S3 client with region from environment
-const s3Client = new S3Client({ 
+// Initialize S3 client - works for both AWS S3 (cloud) and MinIO (local)
+// When S3_ENDPOINT_URL is set, use custom endpoint with path-style access (MinIO)
+// When not set, use standard AWS S3 with auto-loaded credentials (IAM role, env vars, etc.)
+const s3Client = new S3Client({
   region: process.env.AWS_REGION || 'us-west-2',
-  // AWS credentials will be automatically loaded from environment or IAM role
+  ...(process.env.S3_ENDPOINT_URL && {
+    endpoint: process.env.S3_ENDPOINT_URL,
+    forcePathStyle: true, // Required for MinIO/S3-compatible storage
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+    },
+  }),
 });
 
 // Parse S3 URL to extract bucket and key

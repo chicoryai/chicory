@@ -147,6 +147,12 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
       AWS_REGION: ${AWS_REGION:-us-east-1}
       TASK_AUDIT_TRAIL_S3_BUCKET_NAME: ${TASK_AUDIT_TRAIL_S3_BUCKET_NAME:-chicory-audit-trails}
+      # Documentation Agent (for PROJECT.md generation)
+      DOCUMENTATION_AGENT_ID: ${DOCUMENTATION_AGENT_ID}
+      DOCUMENTATION_AGENT_PROJECT_ID: ${DOCUMENTATION_AGENT_PROJECT_ID}
+      # MCP Servers
+      DB_MCP_SERVER_URL: http://db-mcp-server:8080
+      TOOLS_MCP_SERVER_URL: http://tools-mcp-server:8080
       # Python
       PYTHONPATH: /app
       PYTHONUNBUFFERED: 1
@@ -184,10 +190,17 @@ services:
       PROPELAUTH_API_KEY: ${PROPELAUTH_API_KEY}
       PROPELAUTH_VERIFIER_KEY: ${PROPELAUTH_VERIFIER_KEY}
       PROPELAUTH_REDIRECT_URI: ${PROPELAUTH_REDIRECT_URI:-http://localhost:3000/api/auth/callback}
+      # S3/MinIO Storage (for audit trails)
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-http://minio:9000}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      TASK_AUDIT_TRAIL_S3_BUCKET_NAME: ${TASK_AUDIT_TRAIL_S3_BUCKET_NAME:-chicory-audit-trails}
     networks:
       - chicory-network
     depends_on:
       - backend-api
+      - minio
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
       interval: 30s
@@ -233,7 +246,7 @@ services:
     ports:
       - "8081:8080"
     environment:
-      BACKEND_API_URL: http://backend-api:8000
+      API_BASE_URL: http://backend-api:8000
       PYTHONUNBUFFERED: 1
     networks:
       - chicory-network
@@ -255,7 +268,7 @@ services:
     ports:
       - "8082:8080"
     environment:
-      BACKEND_API_URL: http://backend-api:8000
+      API_BASE_URL: http://backend-api:8000
       PYTHONUNBUFFERED: 1
     networks:
       - chicory-network
@@ -332,6 +345,8 @@ services:
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
       TASK_AUDIT_TRAIL_S3_BUCKET_NAME: ${TASK_AUDIT_TRAIL_S3_BUCKET_NAME:-chicory-audit-trails}
+      # Redis for streaming
+      REDIS_URL: redis://:${REDIS_PASSWORD:-chicory}@redis:6379
       PYTHONUNBUFFERED: 1
     networks:
       - chicory-network
@@ -339,6 +354,8 @@ services:
       rabbitmq:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
 

@@ -9,6 +9,7 @@ import logging
 import boto3
 from botocore.exceptions import ClientError
 from urllib.parse import urlparse
+from app.utils.s3_utils import _get_s3_client_for_bucket
 from app.utils.rabbitmq_client import queue_training_job
 from app.utils.projectmd_utils import get_documentation_agent_id, get_documentation_agent_project_id
 from app.utils.projectmd_orchestration import start_projectmd_orchestration
@@ -346,7 +347,7 @@ async def get_latest_project_md(project_id: str):
     
     # Download the content from S3
     try:
-        s3_client = boto3.client('s3')
+        s3_client, _ = _get_s3_client_for_bucket(bucket_name)
         response = s3_client.get_object(Bucket=bucket_name, Key=object_key)
         content = response['Body'].read().decode('utf-8')
         

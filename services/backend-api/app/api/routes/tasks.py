@@ -13,6 +13,7 @@ import logging
 
 import boto3
 from botocore.exceptions import ClientError
+from app.utils.s3_utils import _get_s3_client_for_bucket
 
 logger = logging.getLogger(__name__)
 
@@ -404,7 +405,7 @@ async def list_task_artifacts(project_id: str, agent_id: str, task_id: str):
     prefix = f"{project_id.lower()}/{agent_id.lower()}/{task_id}/artifacts/"
 
     try:
-        s3_client = boto3.client('s3', region_name=os.getenv("AWS_REGION", "us-west-2"))
+        s3_client, _ = _get_s3_client_for_bucket(bucket_name)
 
         artifacts = []
         paginator = s3_client.get_paginator('list_objects_v2')

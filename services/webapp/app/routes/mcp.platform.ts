@@ -3,9 +3,19 @@ import { json } from "@remix-run/node";
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import type { ActionFunctionArgs } from '@remix-run/node';
 
-// S3 client singleton for reuse across requests
-const s3Client = new S3Client({ 
-  region: process.env.AWS_REGION || 'us-west-2'
+// S3 client singleton - works for both AWS S3 (cloud) and MinIO (local)
+// When S3_ENDPOINT_URL is set, use custom endpoint with path-style access (MinIO)
+// When not set, use standard AWS S3 with auto-loaded credentials (IAM role, env vars, etc.)
+const s3Client = new S3Client({
+  region: process.env.AWS_REGION || 'us-west-2',
+  ...(process.env.S3_ENDPOINT_URL && {
+    endpoint: process.env.S3_ENDPOINT_URL,
+    forcePathStyle: true, // Required for MinIO/S3-compatible storage
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+    },
+  }),
 });
 
 import { auth } from "~/auth/auth.server";

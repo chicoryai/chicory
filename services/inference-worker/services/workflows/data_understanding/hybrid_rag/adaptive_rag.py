@@ -47,6 +47,32 @@ except ImportError:
 SEED = int(os.environ.get("SEED", "101"))
 MAX_TOKENS = 100_000
 
+
+def _get_s3_client():
+    """Create S3 client with optional custom endpoint (MinIO, LocalStack, etc.)
+
+    Works for both:
+    - AWS S3 (cloud): Uses default credentials chain (IAM role, env vars, etc.)
+    - MinIO (local): Uses S3_ENDPOINT_URL with explicit credentials
+    """
+    region = os.environ.get("AWS_REGION", "us-west-2")
+    endpoint_url = os.environ.get("S3_ENDPOINT_URL")
+
+    client_kwargs = {
+        'region_name': region,
+    }
+
+    # Add endpoint URL if specified (for MinIO or other S3-compatible storage)
+    if endpoint_url:
+        client_kwargs['endpoint_url'] = endpoint_url
+        # Explicit credentials needed for MinIO
+        client_kwargs['aws_access_key_id'] = os.environ.get('AWS_ACCESS_KEY_ID', '')
+        client_kwargs['aws_secret_access_key'] = os.environ.get('AWS_SECRET_ACCESS_KEY', '')
+        logger.info(f"Using custom S3 endpoint: {endpoint_url}")
+
+    return boto3.client("s3", **client_kwargs)
+
+
 DEFAULT_ERROR_MESSAGE = (
     "I'm sorry, but something went wrong while processing your request. "
     "Please try again or contact support if the issue persists."
@@ -610,8 +636,21 @@ class LLMAgentArchitecture:
                     logger.warning(f"Failed to fetch tools from MCP server {server_name}: {e}")
 
         logger.info(f"Final allowed_tools: {allowed_tools}")
-        logger.info(f"Total MCP tools for permissions: {len(all_mcp_tools)}")
-        
+        logger.info(f"Total MCP tools discovered: {len(all_mcp_tools)}")
+
+        # Build wildcard permission patterns for each MCP server
+        # Using wildcards (mcp__server__*) instead of listing individual tools
+        # ensures all tools from configured servers are auto-approved
+        mcp_server_permission_patterns = []
+        for server_name in mcp_servers.keys():
+            # Normalize server name (replace spaces/dashes with underscores)
+            normalized_name = server_name.replace(' ', '_').replace('-', '_')
+            pattern = f"mcp__{normalized_name}__*"
+            mcp_server_permission_patterns.append(pattern)
+            logger.info(f"Added MCP permission wildcard pattern: {pattern}")
+
+        logger.info(f"MCP server permission patterns: {mcp_server_permission_patterns}")
+
         # Configure subagents for specialized tasks
         subagents = {
             "reader": AgentDefinition(
@@ -811,9 +850,9 @@ For refused execution:
         }
         
         # Configure Claude Code options with strict directory and write restrictions
-        # Build MCP tool permissions (explicit list, not wildcards)
-        mcp_tool_permissions = [f'"{tool}"' for tool in all_mcp_tools]
-        mcp_permissions_str = ",\n                    ".join(mcp_tool_permissions) if mcp_tool_permissions else ""
+        # Build MCP server permission patterns (wildcards to auto-approve all tools from each server)
+        mcp_permissions_list = [f'"{pattern}"' for pattern in mcp_server_permission_patterns]
+        mcp_permissions_str = ",\n                    ".join(mcp_permissions_list) if mcp_permissions_list else ""
         
         settings_json = f"""
         {{
@@ -1814,13 +1853,13 @@ CRITICAL IDENTITY RULES:
         
         for attempt in range(max_retries):
             try:
-                s3_client = boto3.client('s3')
+                s3_client = _get_s3_client()
                 bucket_name = os.environ.get('TASK_AUDIT_TRAIL_S3_BUCKET_NAME')
-                
+
                 if not bucket_name:
                     logger.warning("TASK_AUDIT_TRAIL_S3_BUCKET_NAME environment variable not set, skipping S3 save")
                     return False
-                
+
                 # Use assistant_task_id for S3 key path
                 assistant_task_id = self.runtime_config["configurable"]["assistant_task_id"]
                 s3_key = f"{self.project.lower()}/{self.agent_id.lower()}/{assistant_task_id}/messages.json"
@@ -1890,8 +1929,8 @@ CRITICAL IDENTITY RULES:
             if not artifact_files:
                 logger.info("No artifacts found in working directory")
                 return True
-            
-            s3_client = boto3.client('s3')
+
+            s3_client = _get_s3_client()
             uploaded_count = 0
             
             # Upload each artifact
