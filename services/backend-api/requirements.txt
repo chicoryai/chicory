@@ -58,7 +58,7 @@ dbt-core>=1.10.9,<2.0.0
 looker-sdk>=24.0.0,<25.0.0
 
 # DataHub libraries
-acryl-datahub>=0.13.0,<0.14.0
+acryl-datahub>=0.13.0,<1.4.0
 
 # Airflow libraries (for HTTP API client)
 requests>=2.25.0,<3.0.0
