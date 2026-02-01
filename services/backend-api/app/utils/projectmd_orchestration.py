@@ -4,6 +4,7 @@ Handles background agent invocation and S3 upload for project documentation.
 """
 
 import asyncio
+import json
 from datetime import datetime, timezone
 from typing import Optional
 from fastapi import HTTPException
@@ -47,8 +48,21 @@ class ProjectMDOrchestrator:
     async def _create_documentation_task(self):
         """Create task for the documentation agent"""
         try:
-            # Create documentation prompt
-            documentation_prompt = "Please provide your claude.md now."
+            # Create documentation prompt that instructs the agent to explore and document
+            documentation_prompt = """Generate comprehensive project documentation (CLAUDE.md) for this project.
+
+REQUIRED: Before generating documentation, you MUST:
+1. Explore the context directory to find available data files
+2. Read the database schema files (especially under database_metadata/providers/)
+3. Examine any code or documents in the raw/ directory
+
+Then generate documentation that includes:
+- Project Overview based on what you found
+- Data Sources with specific table names, columns, and data types
+- Key Concepts and domain terminology
+- Usage Guidelines
+
+Start by listing the available files to understand what context is available."""
             
             # Create user task for documentation agent
             user_task = Task(
@@ -146,9 +160,21 @@ class ProjectMDOrchestrator:
     async def _upload_to_s3(self, project_md_content: str):
         """Upload generated project.md content to S3"""
         try:
+            # Extract markdown content from JSON response wrapper if present
+            # The inference worker returns content as {"response": "...markdown..."}
+            markdown_content = project_md_content
+            try:
+                parsed = json.loads(project_md_content)
+                if isinstance(parsed, dict) and 'response' in parsed:
+                    markdown_content = parsed['response']
+                    logger.info("Extracted markdown from JSON response wrapper")
+            except (json.JSONDecodeError, TypeError):
+                # If it's not JSON, use the content as-is
+                pass
+
             # Upload to S3
             s3_url = await upload_projectmd_to_s3(
-                project_md_content=project_md_content,
+                project_md_content=markdown_content,
                 project_id=self.training.project_id,
                 training_id=str(self.training.id)
             )

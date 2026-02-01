@@ -4,6 +4,7 @@ from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel as PydanticBaseModel, Field, validator
+from pymongo import IndexModel
 from app.models.base import BaseModel
 from beanie import Indexed
 
@@ -82,7 +83,8 @@ class Agent(BaseModel):
     capabilities: List[str] = []
     metadata: Dict[str, Any] = {}
     versions: List[Dict[str, Any]] = []
-    
+    is_system_agent: bool = False  # True for auto-created system agents (e.g., documentation agent)
+
     def _add_version(self, instructions: str, output_format: str, updated_by: Optional[str] = None) -> None:
         """Add a version entry with the given instructions and output_format"""
         # Only create version if there's content to save
@@ -112,7 +114,16 @@ class Agent(BaseModel):
     
     class Settings:
         name = "agents"
-        
+        indexes = [
+            # Partial unique index to ensure only one system agent per name per project
+            IndexModel(
+                [("project_id", 1), ("name", 1)],
+                unique=True,
+                partialFilterExpression={"is_system_agent": True},
+                name="unique_system_agent_per_project"
+            )
+        ]
+
     class Config:
         populate_by_name = True
         arbitrary_types_allowed = True
@@ -164,9 +175,10 @@ class AgentResponse(PydanticBaseModel):
     api_key: Optional[str] = None
     capabilities: List[str] = []
     metadata: Dict[str, Any] = {}
+    is_system_agent: bool = False
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
 

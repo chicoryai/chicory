@@ -11,7 +11,7 @@ from botocore.exceptions import ClientError
 from urllib.parse import urlparse
 from app.utils.s3_utils import _get_s3_client_for_bucket
 from app.utils.rabbitmq_client import queue_training_job
-from app.utils.projectmd_utils import get_documentation_agent_id, get_documentation_agent_project_id
+from app.utils.documentation_agent import get_or_create_documentation_agent
 from app.utils.projectmd_orchestration import start_projectmd_orchestration
 
 router = APIRouter()
@@ -220,23 +220,9 @@ async def generate_project_md(project_id: str, training_id: str, background_task
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Project.md generation is already {training.projectmd_status} for training {training_id}"
         )
-    
-    # Get documentation agent configuration
-    documentation_agent_id = get_documentation_agent_id()
-    documentation_project_id = get_documentation_agent_project_id()
-    if not documentation_agent_id or not documentation_project_id:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Documentation agent not configured"
-        )
-    
-    # Validate that documentation agent exists in the specified project
-    documentation_agent = await Agent.get(documentation_agent_id)
-    if not documentation_agent or documentation_agent.project_id != documentation_project_id:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Configured documentation agent {documentation_agent_id} not found in project {documentation_project_id}"
-        )
+
+    # Get or create documentation agent for this project (lazy creation with atomic upsert)
+    documentation_agent_id, documentation_project_id = await get_or_create_documentation_agent(project_id)
     
     # Update training job with project.md generation status
     update_data = {

@@ -180,11 +180,17 @@ class LLMAgentArchitecture:
 
 
     def _get_context_directory(self) -> str:
-        """Get and create the context directory for Claude Code."""
+        """Get and create the context directory for Claude Code.
+
+        Returns the project's root data directory which contains:
+        - raw/ - Raw scanned documents, code, and data files
+        - database_metadata/ - Scanned database schemas (BigQuery, Databricks, etc.)
+        """
         home_path = os.getenv("HOME_PATH", "/app")
         data_path = os.getenv("BASE_DIR", os.path.join(home_path, "data"))
         project_id = self.project.lower()
-        context_directory = os.path.join(data_path, project_id, "raw")
+        # Use project root to include both raw/ and database_metadata/ directories
+        context_directory = os.path.join(data_path, project_id)
 
         # Ensure working directory exists
         os.makedirs(context_directory, exist_ok=True)
@@ -279,11 +285,12 @@ class LLMAgentArchitecture:
                 logger.warning(f"Source skills directory not found: {source_skills_dir}")
                 logger.info(f"Created empty skills directory: {target_skills_dir}")
             
-            # Copy CLAUDE.md from context directory to .claude folder
+            # Copy CLAUDE.md from context directory's raw/ subfolder to .claude folder
             context_directory = self._get_context_directory()
-            source_claude_md = os.path.join(context_directory, "CLAUDE.md")
+            # CLAUDE.md is stored in the raw/ subdirectory
+            source_claude_md = os.path.join(context_directory, "raw", "CLAUDE.md")
             target_claude_md = os.path.join(target_claude_dir, "CLAUDE.md")
-            
+
             if os.path.exists(source_claude_md):
                 shutil.copy2(source_claude_md, target_claude_md)
                 logger.info(f"Copied CLAUDE.md from context to .claude directory")

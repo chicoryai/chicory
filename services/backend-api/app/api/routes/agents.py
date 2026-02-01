@@ -105,10 +105,14 @@ async def put_agent(project_id: str, agent_id: str, agent_data: AgentCreate):
     agent = await Agent.get(agent_id)
     if not agent:
         raise HTTPException(status_code=404, detail="agent not found")
-        
+
     if agent.project_id != project_id:
         raise HTTPException(status_code=400, detail="agent does not belong to the specified project")
-    
+
+    # Prevent modification of system agents
+    if getattr(agent, 'is_system_agent', False):
+        raise HTTPException(status_code=400, detail="System agents cannot be modified")
+
     # Update with all fields from agent_data
     # Preserve the original created_at but update updated_at
     created_at = agent.created_at
@@ -154,22 +158,27 @@ async def put_agent(project_id: str, agent_id: str, agent_data: AgentCreate):
     )
 
 @router.get("/projects/{project_id}/agents", response_model=AgentList)
-async def list_agents(project_id: str, owner: Optional[str] = None):
+async def list_agents(project_id: str, owner: Optional[str] = None, include_system: bool = False):
     """
     List all agents for a project with optional filtering
-    
+
     Parameters:
     - project_id: The ID of the project to list agents for
     - owner: Optional owner to filter agents by
+    - include_system: Include system agents in the response (default: False)
     """
     try:
-        print(f"Searching for agents with project_id: {project_id}, owner filter: {owner}")
-        
+        print(f"Searching for agents with project_id: {project_id}, owner filter: {owner}, include_system: {include_system}")
+
         # Build the query with project_id and optional owner filter
         query = {"project_id": project_id}
         if owner is not None:
             query["owner"] = owner
-            
+        # Filter out system agents by default
+        # $ne: True matches both False and missing field (backward compat for old docs)
+        if not include_system:
+            query["is_system_agent"] = {"$ne": True}
+
         # Use a raw query to avoid validation errors from documents with missing fields
         raw_agents = await Agent.get_motor_collection().find(query).to_list(length=None)
         print(f"Found {len(raw_agents)} raw agent documents")
@@ -194,6 +203,7 @@ async def list_agents(project_id: str, owner: Optional[str] = None):
                     api_key=raw_agent.get("api_key"),
                     capabilities=raw_agent.get("capabilities", []),
                     metadata=raw_agent.get("metadata", {}),
+                    is_system_agent=raw_agent.get("is_system_agent", False),
                     created_at=raw_agent.get("created_at", datetime.utcnow()),
                     updated_at=raw_agent.get("updated_at", datetime.utcnow())
                 )
@@ -213,18 +223,22 @@ async def list_agents(project_id: str, owner: Optional[str] = None):
 
 @router.patch("/projects/{project_id}/agents/{agent_id}", response_model=AgentResponse)
 async def update_agent(
-    project_id: str, 
-    agent_id: str, 
+    project_id: str,
+    agent_id: str,
     agent_data: AgentUpdate
 ):
     """Update agent information"""
     agent = await Agent.get(agent_id)
     if not agent:
         raise HTTPException(status_code=404, detail="agent not found")
-        
+
     if agent.project_id != project_id:
         raise HTTPException(status_code=400, detail="agent does not belong to the specified project")
-    
+
+    # Prevent modification of system agents
+    if getattr(agent, 'is_system_agent', False):
+        raise HTTPException(status_code=400, detail="System agents cannot be modified")
+
     # Extract updated_by from the request body before building update_data
     updated_by = agent_data.updated_by
     
@@ -286,10 +300,14 @@ async def delete_agent(project_id: str, agent_id: str):
     agent = await Agent.get(agent_id)
     if not agent:
         raise HTTPException(status_code=404, detail="agent not found")
-        
+
     if agent.project_id != project_id:
         raise HTTPException(status_code=400, detail="agent does not belong to the specified project")
-    
+
+    # Prevent deletion of system agents
+    if getattr(agent, 'is_system_agent', False):
+        raise HTTPException(status_code=400, detail="System agents cannot be deleted")
+
     # Delete all tasks associated with the agent
     await Task.find({"agent_id": agent_id}).delete()
     
