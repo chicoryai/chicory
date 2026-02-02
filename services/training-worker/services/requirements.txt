@@ -45,7 +45,7 @@ langchain-text-splitters>=0.3.0,<0.4.0
 langchain-openai>=0.3.0,<0.4.0
 langchain-anthropic>=0.3.0,<0.4.0
 langchain-community>=0.3.0,<0.4.0
-langchain-experimental>=0.3.0,<0.4.0
+langchain-experimental>=0.3.0,<0.5.0
 
 # LangGraph
 langgraph>=0.2.0
