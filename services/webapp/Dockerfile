@@ -1,7 +1,7 @@
 # Multi-stage build for Remix webapp (monorepo-aware)
 
 # ---- Build Stage ----
-FROM node:20-alpine AS builder
+FROM node:25-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -32,7 +32,7 @@ RUN yarn workspace @chicory/auth-propelauth build
 RUN yarn workspace webapp build
 
 # ---- Runtime Stage ----
-FROM node:20-alpine AS runtime
+FROM node:25-alpine AS runtime
 
 # Set working directory
 WORKDIR /app
