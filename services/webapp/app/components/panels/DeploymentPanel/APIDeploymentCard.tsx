@@ -36,7 +36,10 @@ export function APIDeploymentCard({
   const [activeTab, setActiveTab] = useState<'curl' | 'python' | 'nodejs'>('curl');
   const [showAcpInfo, setShowAcpInfo] = useState(false);
 
-  const API_BASE_URL = "https://app.chicory.ai/api/v1";
+  // Dynamically determine base URL based on current origin
+  const API_BASE_URL = typeof window !== 'undefined'
+    ? `${window.location.origin}/api/v1`
+    : "https://app.chicory.ai/api/v1";
 
   const handleDeploy = useCallback(async () => {
     setIsLoading(true);

@@ -6,6 +6,7 @@ import {
   getAgent
 } from "~/services/chicory.server";
 import { createApiKey } from "~/utils/propelauth.server";
+import { getAuth, isCloudAuth } from "~/auth/auth.server";
 
 function normalizeGatewayMetadata(rawGateways: unknown): any[] {
   if (!rawGateways) {
@@ -110,13 +111,32 @@ export async function handleDeployAgent(
         isDeployed: true
       });
     } else {
-      const orgId = userDetails && 'orgId' in userDetails ? userDetails.orgId : null;
-      if (!orgId) {
-        throw new Error("Organization ID is required for deployment");
-      }
+      // Generate API key for agent deployment
+      let generatedApiKey: string;
 
-      const apiKeyResult = await createApiKey(orgId as string, agentId, 'agent');
-      const generatedApiKey = apiKeyResult.apiKeyToken;
+      if (isCloudAuth()) {
+        // PropelAuth mode - requires org
+        const orgId = userDetails && 'orgId' in userDetails ? userDetails.orgId : null;
+        if (!orgId) {
+          throw new Error("Organization ID is required for deployment");
+        }
+        const apiKeyResult = await createApiKey(orgId as string, agentId, 'agent');
+        generatedApiKey = apiKeyResult.apiKeyToken;
+      } else {
+        // Local auth mode - create key directly with agent as resource
+        const auth = await getAuth();
+        const userId = userDetails?.userId;
+        const apiKeyResult = await auth.createApiKey({
+          userId,
+          resourceType: 'agent',
+          resourceId: agentId,
+          metadata: {
+            name: `Agent API Key`,
+            created_for: 'deployment',
+          }
+        });
+        generatedApiKey = apiKeyResult.apiKeyToken;
+      }
 
       await updateAgent(
         projectId,

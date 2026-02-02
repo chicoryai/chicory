@@ -3431,8 +3431,13 @@ export async function getProjectDocumentation(
       throw new Error(`Failed to get project documentation: ${response.statusText}`);
     }
 
-    const data = await response.json();
-    return data.response || data.content || null;
+    const text = await response.text();
+    try {
+      const data = JSON.parse(text);
+      return data.response || data.content || text || null;
+    } catch {
+      return text || null;
+    }
   } catch (error) {
     console.error('Error getting project documentation:', { error });
     return null;

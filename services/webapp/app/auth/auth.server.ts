@@ -134,16 +134,24 @@ export const auth = {
   },
 
   /**
+   * Handle request - PropelAuth compatibility method
+   * For local auth, this is a no-op
+   */
+  handleRequest(_responseHeaders: Headers, _loadContext: unknown): void {
+    // No-op for local auth - PropelAuth uses this for cookie handling
+  },
+
+  /**
    * Auth routes handler
    */
   routes: {
-    async loader(args: { request: Request; params: Record<string, string | undefined> }): Promise<Response> {
+    async loader(request: Request, params: Record<string, string | undefined>): Promise<Response> {
       const provider = await getAuth();
-      return provider.routes.loader(args.request, args.params);
+      return provider.routes.loader(request, params);
     },
-    async action(args: { request: Request; params: Record<string, string | undefined> }): Promise<Response> {
+    async action(request: Request, params: Record<string, string | undefined>): Promise<Response> {
       const provider = await getAuth();
-      return provider.routes.action(args.request, args.params);
+      return provider.routes.action(request, params);
     },
   },
 

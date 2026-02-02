@@ -944,7 +944,14 @@ For refused execution:
         # - For larger files: Skills guide agents to use streaming/chunked processing
         # - Rationale: Prevents memory exhaustion while supporting typical workloads
         buffer_size_mb = int(os.getenv("MAX_BUFFER_SIZE_MB", "20"))
-        
+
+        # Extended thinking configuration:
+        # - Enables Claude to show its reasoning process with thinking tokens
+        # - Default: 10000 tokens for thinking budget
+        # - Configurable via MAX_THINKING_TOKENS environment variable
+        # - Set to 0 to disable extended thinking
+        max_thinking_tokens = int(os.getenv("MAX_THINKING_TOKENS", "10000"))
+
         options_config = {
             "allowed_tools": allowed_tools,
             "system_prompt": system_prompt,
@@ -955,7 +962,8 @@ For refused execution:
             "max_turns": self.recursion_limit,
             "max_buffer_size": buffer_size_mb * 1024 * 1024,
             "agents": subagents,  # Add subagents for specialized tasks
-            "stderr": stderr_callback  # Add stderr callback to capture debug output
+            "stderr": stderr_callback,  # Add stderr callback to capture debug output
+            "max_thinking_tokens": max_thinking_tokens if max_thinking_tokens > 0 else None  # Enable extended thinking
         }
 
         # Add MCP servers if any are configured
@@ -965,6 +973,8 @@ For refused execution:
         self.action_agent_options = ClaudeAgentOptions(**options_config)
         logger.info(f"Configured {len(subagents)} subagents: {list(subagents.keys())}")
         logger.info(f"Skills enabled: Loading from project (.claude/skills/) and user (~/.claude/skills/) directories")
+        if max_thinking_tokens > 0:
+            logger.info(f"Extended thinking enabled with {max_thinking_tokens} token budget")
 
     def _serialize_content_block(self, block) -> dict:
         """Serialize a single content block to a dictionary."""
@@ -1593,45 +1603,45 @@ Original request: {user_prompt}
             if not isinstance(final_messages, list):
                 logger.error(f"final_messages is not a list, got type: {type(final_messages)}. Converting to list.")
                 final_messages = [] if final_messages is None else [final_messages]
-                
-                # Save all messages to S3
-                try:
-                    await self.save_messages_to_s3(final_messages)
-                    logger.info(f"Successfully saved {len(final_messages)} messages to S3")
-                except Exception as e:
-                    logger.error(f"Failed to save messages to S3: {str(e)}", exc_info=True)
-                
-                # Save generated artifacts to S3
-                try:
-                    await self.save_artifacts_to_s3()
-                    logger.info("Successfully saved artifacts to S3")
-                except Exception as e:
-                    logger.error(f"Failed to save artifacts to S3: {str(e)}", exc_info=True)
-                
-                return {
-                    "question": question,
-                    "context": context,
-                    "messages": final_messages,
-                    "generation": generation_text,
-                    "output_format": output_format
-                }
 
-            # Check if Claude Code SDK is available
-            if not CLAUDE_CODE_SDK_AVAILABLE:
-                logger.warning("Claude Code SDK not available, falling back to error response")
-                error_message = "Claude Code SDK is not available for final response generation"
-                final_messages = prev_messages + [{"role": "assistant", "content": error_message}]
-                return await save_and_return(final_messages, error_message)
-
+            # Save all messages to S3
             try:
-                start_time = time.time()
-                logger.info("Starting Claude Code final response generation...")
+                await self.save_messages_to_s3(final_messages)
+                logger.info(f"Successfully saved {len(final_messages)} messages to S3")
+            except Exception as e:
+                logger.error(f"Failed to save messages to S3: {str(e)}", exc_info=True)
 
-                # Create user prompt with question, context, and format requirements
-                # Encourage delegation to formatter subagent for output formatting
-                format_instruction = ""
-                if output_format and output_format.strip():
-                    format_instruction = f"""
+            # Save generated artifacts to S3
+            try:
+                await self.save_artifacts_to_s3()
+                logger.info("Successfully saved artifacts to S3")
+            except Exception as e:
+                logger.error(f"Failed to save artifacts to S3: {str(e)}", exc_info=True)
+
+            return {
+                "question": question,
+                "context": context,
+                "messages": final_messages,
+                "generation": generation_text,
+                "output_format": output_format
+            }
+
+        # Check if Claude Code SDK is available
+        if not CLAUDE_CODE_SDK_AVAILABLE:
+            logger.warning("Claude Code SDK not available, falling back to error response")
+            error_message = "Claude Code SDK is not available for final response generation"
+            final_messages = prev_messages + [{"role": "assistant", "content": error_message}]
+            return await save_and_return(final_messages, error_message)
+
+        try:
+            start_time = time.time()
+            logger.info("Starting Claude Code final response generation...")
+
+            # Create user prompt with question, context, and format requirements
+            # Encourage delegation to formatter subagent for output formatting
+            format_instruction = ""
+            if output_format and output_format.strip():
+                format_instruction = f"""
 
 ## OUTPUT FORMAT REQUIREMENT
 The final response must be formatted according to this specification:
@@ -1663,10 +1673,10 @@ The final response must be formatted according to this specification:
 
 **If you handle formatting yourself**: Ensure the output matches the specification exactly, with no additional commentary or explanatory text before/after the formatted content.
 """
-                else:
-                    format_instruction = "\n\nProvide a comprehensive answer in markdown format."
+            else:
+                format_instruction = "\n\nProvide a comprehensive answer in markdown format."
 
-                user_prompt = f"""# Question
+            user_prompt = f"""# Question
 {question}
 
 ---
@@ -1688,81 +1698,81 @@ CRITICAL IDENTITY RULES:
 - Present yourself as a knowledgeable assistant providing direct help
 - If asked about your name or identity, respond that you are "Chicory AI" - nothing more"""
 
-                final_result, messages = await self._invoke_claude_agent_with_retry("MAIN_AGENT", user_prompt, self.action_agent_options, max_retries=3)
-                
-                # Ensure messages is always a list to prevent concatenation errors
-                if messages is None:
-                    logger.warning("Messages returned as None, initializing as empty list")
-                    messages = []
-                elif len(messages) == 0:
-                    logger.info("Agent completed without intermediate messages")
+            final_result, messages = await self._invoke_claude_agent_with_retry("MAIN_AGENT", user_prompt, self.action_agent_options, max_retries=3)
 
-                # Check if task was cancelled during execution
-                if final_result == TASK_CANCELLED_MESSAGE:
-                    logger.info("Task was cancelled during Claude Code execution")
-                    final_messages = prev_messages + [{"role": "assistant", "content": TASK_CANCELLED_MESSAGE}]
-                    return await save_and_return(final_messages, TASK_CANCELLED_MESSAGE)
+            # Ensure messages is always a list to prevent concatenation errors
+            if messages is None:
+                logger.warning("Messages returned as None, initializing as empty list")
+                messages = []
+            elif len(messages) == 0:
+                logger.info("Agent completed without intermediate messages")
 
-                # Handle empty or invalid response
-                if not final_result or final_result.strip() == "":
-                    logger.warning("Agent generated empty response, creating fallback response")
-                    
-                    # Create a fallback response that matches the requested output format
-                    if output_format and output_format.strip():
-                        try:
-                            # Check if JSON format is expected
-                            if "json" in output_format.lower() or "{" in output_format:
-                                final_result = '{"error": "Unable to generate response", "message": "I apologize, but I was unable to process your request. Please try rephrasing your question or contact support if the issue persists."}'
-                            else:
-                                final_result = "I apologize, but I was unable to process your request. Please try rephrasing your question or contact support if the issue persists."
-                        except Exception:
-                            final_result = "I apologize, but I was unable to process your request. Please try rephrasing your question or contact support if the issue persists."
-                    else:
-                        final_result = "I apologize, but I was unable to process your request. Please try rephrasing your question or contact support if the issue persists."
-                
-                # Log completion stats
-                total_time = time.time() - start_time
-                logger.info(f"Claude Code final response generation completed in {total_time:.2f}s")
-                
-                # Prepare final messages and save - ensure all components are lists
-                try:
-                    final_messages = prev_messages + messages + [{"role": "assistant", "content": final_result}]
-                except TypeError as te:
-                    logger.error(f"Error concatenating messages: {te}. prev_messages type: {type(prev_messages)}, messages type: {type(messages)}")
-                    # Fallback: create a minimal valid message list
-                    final_messages = (prev_messages if isinstance(prev_messages, list) else []) + [{"role": "assistant", "content": final_result}]
-                
-                return await save_and_return(final_messages, final_result)
+            # Check if task was cancelled during execution
+            if final_result == TASK_CANCELLED_MESSAGE:
+                logger.info("Task was cancelled during Claude Code execution")
+                final_messages = prev_messages + [{"role": "assistant", "content": TASK_CANCELLED_MESSAGE}]
+                return await save_and_return(final_messages, TASK_CANCELLED_MESSAGE)
 
-            except Exception as e:
-                # Log full internal details, but return a user-safe error message
-                logger.error("Error in Claude Code final response generation", exc_info=True)
+            # Handle empty or invalid response
+            if not final_result or final_result.strip() == "":
+                logger.warning("Agent generated empty response, creating fallback response")
 
+                # Create a fallback response that matches the requested output format
                 if output_format and output_format.strip():
                     try:
-                        # If JSON-like output is expected, return a minimal JSON error object
+                        # Check if JSON format is expected
                         if "json" in output_format.lower() or "{" in output_format:
-                            user_safe_message = json.dumps({
-                                "error": "internal_error",
-                                "message": DEFAULT_ERROR_MESSAGE
-                            })
+                            final_result = '{"error": "Unable to generate response", "message": "I apologize, but I was unable to process your request. Please try rephrasing your question or contact support if the issue persists."}'
                         else:
-                            user_safe_message = DEFAULT_ERROR_MESSAGE
-                    except Exception as format_error:
-                        logger.warning(f"Failed to format error message: {format_error}")
-                        user_safe_message = DEFAULT_ERROR_MESSAGE
+                            final_result = "I apologize, but I was unable to process your request. Please try rephrasing your question or contact support if the issue persists."
+                    except Exception:
+                        final_result = "I apologize, but I was unable to process your request. Please try rephrasing your question or contact support if the issue persists."
                 else:
-                    user_safe_message = DEFAULT_ERROR_MESSAGE
+                    final_result = "I apologize, but I was unable to process your request. Please try rephrasing your question or contact support if the issue persists."
 
-                # Ensure prev_messages is a list before concatenation
+            # Log completion stats
+            total_time = time.time() - start_time
+            logger.info(f"Claude Code final response generation completed in {total_time:.2f}s")
+
+            # Prepare final messages and save - ensure all components are lists
+            try:
+                final_messages = prev_messages + messages + [{"role": "assistant", "content": final_result}]
+            except TypeError as te:
+                logger.error(f"Error concatenating messages: {te}. prev_messages type: {type(prev_messages)}, messages type: {type(messages)}")
+                # Fallback: create a minimal valid message list
+                final_messages = (prev_messages if isinstance(prev_messages, list) else []) + [{"role": "assistant", "content": final_result}]
+
+            return await save_and_return(final_messages, final_result)
+
+        except Exception as e:
+            # Log full internal details, but return a user-safe error message
+            logger.error("Error in Claude Code final response generation", exc_info=True)
+
+            if output_format and output_format.strip():
                 try:
-                    final_messages = prev_messages + [{"role": "assistant", "content": user_safe_message}]
-                except TypeError as te:
-                    logger.error(f"Error concatenating prev_messages in exception handler: {te}. prev_messages type: {type(prev_messages)}")
-                    # Fallback: create a minimal valid message list
-                    final_messages = (prev_messages if isinstance(prev_messages, list) else []) + [{"role": "assistant", "content": user_safe_message}]
-                
-                return await save_and_return(final_messages, user_safe_message)
+                    # If JSON-like output is expected, return a minimal JSON error object
+                    if "json" in output_format.lower() or "{" in output_format:
+                        user_safe_message = json.dumps({
+                            "error": "internal_error",
+                            "message": DEFAULT_ERROR_MESSAGE
+                        })
+                    else:
+                        user_safe_message = DEFAULT_ERROR_MESSAGE
+                except Exception as format_error:
+                    logger.warning(f"Failed to format error message: {format_error}")
+                    user_safe_message = DEFAULT_ERROR_MESSAGE
+            else:
+                user_safe_message = DEFAULT_ERROR_MESSAGE
+
+            # Ensure prev_messages is a list before concatenation
+            try:
+                final_messages = prev_messages + [{"role": "assistant", "content": user_safe_message}]
+            except TypeError as te:
+                logger.error(f"Error concatenating prev_messages in exception handler: {te}. prev_messages type: {type(prev_messages)}")
+                # Fallback: create a minimal valid message list
+                final_messages = (prev_messages if isinstance(prev_messages, list) else []) + [{"role": "assistant", "content": user_safe_message}]
+
+            return await save_and_return(final_messages, user_safe_message)
 
     # ========================================================================
     # PUBLIC API METHODS

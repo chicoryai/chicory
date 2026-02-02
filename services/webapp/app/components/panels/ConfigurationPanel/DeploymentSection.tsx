@@ -17,8 +17,13 @@ import {
 } from "@heroicons/react/24/outline";
 import { Form, useSubmit } from "@remix-run/react";
 
-// API endpoints configuration
-const API_BASE_URL = "https://app.chicory.ai/api/v1";
+// API endpoints configuration - dynamically determine base URL
+const getApiBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}/api/v1`;
+  }
+  return "https://app.chicory.ai/api/v1";
+};
 
 interface DeploymentSectionProps {
   agentId: string;
@@ -51,8 +56,11 @@ export function DeploymentSection({
   const [showAcpInfo, setShowAcpInfo] = useState(false);
   const submit = useSubmit();
 
-  // Generate API endpoint
-  const apiEndpoint = `https://app.chicory.ai/v1/agents/${agentId}`;
+  // Generate API endpoint dynamically
+  const apiBaseUrl = getApiBaseUrl();
+  const apiEndpoint = typeof window !== 'undefined'
+    ? `${window.location.origin}/v1/agents/${agentId}`
+    : `https://app.chicory.ai/v1/agents/${agentId}`;
   
   // Update local error message when deployment error changes
   useEffect(() => {
@@ -120,7 +128,7 @@ export function DeploymentSection({
   const handleCopyCodeSnippet = () => {
     // Extract agent ID from the endpoint URL
     const currentTime = new Date().toISOString();
-    const runsEndpoint = `${API_BASE_URL}/runs`;
+    const runsEndpoint = `${apiBaseUrl}/runs`;
     
     let codeSnippet = '';
     
@@ -149,7 +157,7 @@ from acp_sdk.client import Client
 from acp_sdk.models import Message, MessagePart
 
 async def run_async():
-    async with Client(base_url="${API_BASE_URL}", auth=("Bearer ${getApiKeyDisplay()}") as client:
+    async with Client(base_url="${apiBaseUrl}", auth=("Bearer ${getApiKeyDisplay()}") as client:
         run = await client.run_async(
             agent="${agentId}",
             input=[Message(parts=[MessagePart(content="Hello")])]
@@ -204,7 +212,7 @@ fetch(url, options)
 from acp_sdk.client import Client
 
 async def run_sync():
-    async with Client(base_url="${API_BASE_URL}", auth=("Bearer ${getApiKeyDisplay()}") as client:
+    async with Client(base_url="${apiBaseUrl}", auth=("Bearer ${getApiKeyDisplay()}") as client:
         run = await client.run_sync(
             agent="${agentId}",
             input=[Message(parts=[MessagePart(content="Hello")])]
@@ -366,7 +374,7 @@ fetch(url, options)
                   <>
                     {activeTab === 'curl' && (
                       <pre className="text-xs text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
-{`curl -X POST https://app.chicory.ai/api/v1/runs \\
+{`curl -X POST ${apiBaseUrl}/runs \\
 -H "Content-Type: application/json" \\
 -H "Authorization: Bearer ${getApiKeyDisplay()}" \\
 -d '{
@@ -393,7 +401,7 @@ from acp_sdk.client import Client
 from acp_sdk.models import Message, MessagePart
 
 async def run_async():
-    async with Client(base_url="${API_BASE_URL}", auth=("Bearer ${getApiKeyDisplay()}") as client:
+    async with Client(base_url="${apiBaseUrl}", auth=("Bearer ${getApiKeyDisplay()}") as client:
         run = await client.run_async(
             agent="${agentId}",
             input=[Message(parts=[MessagePart(content="Hello")])]
@@ -413,7 +421,7 @@ if __name__ == "__main__":
                       <pre className="text-xs text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
 {`const fetch = require('node-fetch');
 
-const url = 'https://app.chicory.ai/api/v1/runs';
+const url = '${apiBaseUrl}/runs';
 const options = {
   method: 'POST',
   headers: {
@@ -447,7 +455,7 @@ fetch(url, options)
                   <>
                     {activeTab === 'curl' && (
                       <pre className="text-xs text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
-{`curl -X GET https://app.chicory.ai/api/v1/runs/YOUR_RUN_ID \\
+{`curl -X GET ${apiBaseUrl}/runs/YOUR_RUN_ID \\
 -H "Authorization: Bearer ${getApiKeyDisplay()}"`}
                       </pre>
                     )}
@@ -458,7 +466,7 @@ fetch(url, options)
 from acp_sdk.client import Client
 
 async def run_sync():
-    async with Client(base_url="${API_BASE_URL}", auth=("Bearer ${getApiKeyDisplay()}") as client:
+    async with Client(base_url="${apiBaseUrl}", auth=("Bearer ${getApiKeyDisplay()}") as client:
         run = await client.run_sync(
             agent="${agentId}",
             input=[Message(parts=[MessagePart(content="Hello")])]
@@ -474,7 +482,7 @@ if __name__ == "__main__":
                       <pre className="text-xs text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
 {`const fetch = require('node-fetch');
 
-const url = 'https://app.chicory.ai/api/v1/runs/YOUR_RUN_ID';
+const url = '${apiBaseUrl}/runs/YOUR_RUN_ID';
 const options = {
   method: 'GET',
   headers: {

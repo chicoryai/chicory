@@ -128,8 +128,8 @@ class InferenceJobManager:
                 logger.warning("S3_BUCKET not set, skipping S3 sync")
                 return False
 
-            # S3 prefix for project data (training worker stores at {project_id}/)
-            s3_prefix = f"{project_id}/"
+            # S3 prefix for project data (training worker stores at inference/data/{project_id}/)
+            s3_prefix = f"inference/data/{project_id}/"
 
             # Local destination - use /app/data/{project_id} structure
             local_base = os.getenv("CONTEXT_DIR", "/app/data")
@@ -400,9 +400,9 @@ class InferenceJobManager:
             
             # If not found in data sources, use fallback from environment
             if not anthropic_api_key:
-                anthropic_api_key = os.getenv("CHICORY_ANTHROPIC_API_KEY")
+                anthropic_api_key = os.getenv("CHICORY_ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
                 if anthropic_api_key:
-                    logger.info(f"Using fallback Anthropic API key from CHICORY_ANTHROPIC_API_KEY for project {project_id}")
+                    logger.info(f"Using fallback Anthropic API key from environment for project {project_id}")
                 else:
                     logger.warning(f"No Anthropic API key found for project {project_id}")
                     return None
@@ -1069,7 +1069,7 @@ class InferenceJobManager:
 
             # Extract stream and Redis publishing settings from metadata
             stream_response = metadata.get('stream', True)
-            redis_publishing_enabled = metadata.get('redis_publishing_enabled', False)
+            redis_publishing_enabled = metadata.get('redis_publishing_enabled', True)  # Default to True for real-time streaming
 
             # Log what we're using
             logger.info(f"Using thread_id: {thread_id}")
@@ -1077,6 +1077,8 @@ class InferenceJobManager:
                 logger.info(f"Using checkpoint data: ns={checkpoint_ns}, id={checkpoint_id}")
             if stream_response:
                 logger.info("Streaming mode enabled - will capture question breakdown and thinking states")
+            if redis_publishing_enabled:
+                logger.info("Redis publishing enabled for real-time streaming updates")
 
             # Get agent configuration (instructions, description, output format) from the API
             agent_info = await self.get_agent_info(agent_id, project_id)

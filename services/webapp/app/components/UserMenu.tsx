@@ -139,10 +139,10 @@ export function UserMenu({ user, className = "", compact = false, onClose, showC
       </div>
       
       {isOpen && (
-        <div className="absolute bottom-full left-0 right-0 mb-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-10">
+        <div className="absolute bottom-full left-0 mb-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-10 min-w-[200px] max-w-[280px]">
           <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="font-medium text-gray-900 dark:text-white">{displayName}</div>
-            <div className="text-xs text-gray-500 dark:text-gray-400">{user.email}</div>
+            <div className="font-medium text-gray-900 dark:text-white truncate" title={displayName}>{displayName}</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 truncate" title={user.email}>{user.email}</div>
           </div>
           
           <div className="py-2">

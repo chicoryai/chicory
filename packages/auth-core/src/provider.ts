@@ -7,6 +7,7 @@ import type {
   CreateApiKeyParams,
   CreateApiKeyResult,
   ApiKeyValidationResult,
+  ApiKeyInfo,
   FetchApiKeysParams,
   FetchApiKeysResult,
   FetchUsersInOrgResult,
@@ -236,7 +237,7 @@ export class LocalAuthProvider implements AuthProvider {
   async fetchApiKeys(params: FetchApiKeysParams): Promise<FetchApiKeysResult> {
     await this.ensureInitialized();
 
-    let apiKeys;
+    let apiKeys: ApiKeyInfo[] = [];
     if (params.userId) {
       apiKeys = await this.apiKeyModel!.findByUser(params.userId, params.pageSize, params.pageNumber);
     } else if (params.orgId) {

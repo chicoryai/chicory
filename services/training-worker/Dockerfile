@@ -6,7 +6,7 @@ FROM python:3.12-slim
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app:/app/packages/worker-common:/app/packages/python-common
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -33,12 +33,20 @@ WORKDIR /app
 # Upgrade pip
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
+# Copy and install python-common package first (chicory-common)
+COPY packages/python-common /app/packages/python-common
+RUN pip install --no-cache-dir -e /app/packages/python-common
+
+# Copy and install worker-common package
+COPY packages/worker-common /app/packages/worker-common
+RUN pip install --no-cache-dir -e /app/packages/worker-common
+
 # Copy requirements and install
-COPY requirements.txt /app/requirements.txt
+COPY services/training-worker/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # Copy application code
-COPY . .
+COPY services/training-worker/ /app/
 
 # Make entrypoint executable
 RUN chmod +x entrypoint.sh

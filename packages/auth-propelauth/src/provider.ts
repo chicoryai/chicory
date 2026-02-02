@@ -43,7 +43,7 @@ export class PropelAuthProvider implements AuthProvider {
       firstName: user.firstName,
       lastName: user.lastName,
       username: user.username,
-      pictureUrl: user.pictureUrl,
+      pictureUrl: (user as any).pictureUrl,
       activeOrgId: user.activeOrgId,
       orgIdToUserOrgInfo: user.orgIdToUserOrgInfo as Record<string, {
         orgId: string;
@@ -190,7 +190,7 @@ export class PropelAuthProvider implements AuthProvider {
       const result = await this.nodeAuth.validateApiKey(apiKey);
       return {
         user: result.user ? { userId: result.user.userId, email: result.user.email } : undefined,
-        org: result.org ? { orgId: result.org.orgId, orgName: result.org.orgName } : undefined,
+        org: result.org ? { orgId: result.org.orgId, orgName: (result.org as any).orgName || (result.org as any).name } : undefined,
         metadata: result.metadata,
       };
     } catch (error) {
@@ -243,10 +243,10 @@ export class PropelAuthProvider implements AuthProvider {
   // Auth routes - delegate to PropelAuth Remix
   routes: AuthRoutes = {
     loader: async (request: Request, params: Record<string, string | undefined>): Promise<Response> => {
-      return this.remixAuth.routes.loader({ request, params } as any);
+      return (this.remixAuth.routes.loader as any)({ request, params });
     },
     action: async (request: Request, params: Record<string, string | undefined>): Promise<Response> => {
-      return this.remixAuth.routes.action({ request, params } as any);
+      return (this.remixAuth.routes.action as any)({ request, params });
     },
   };
 

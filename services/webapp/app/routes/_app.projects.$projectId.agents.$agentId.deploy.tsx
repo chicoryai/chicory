@@ -49,7 +49,13 @@ type SampleLanguage = "curl";
 type SampleVariant = Record<SampleEndpoint, string>;
 type SampleMap = Record<SampleLanguage, SampleVariant>;
 
-const API_BASE_URL = "https://app.chicory.ai/api/v1";
+// Dynamically determine base URL based on current origin
+const getApiBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}/api/v1`;
+  }
+  return "https://app.chicory.ai/api/v1";
+};
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { agentId, projectId } = params;
@@ -459,7 +465,7 @@ export default function AgentDeployView() {
 
   const sampleKey = apiKey || "YOUR_API_KEY";
   const sampleTimestamp = new Date().toISOString();
-  const runsEndpoint = `${API_BASE_URL}/projects/${apiProjectId}/runs`;
+  const runsEndpoint = `${getApiBaseUrl()}/projects/${apiProjectId}/runs`;
   const samples: SampleMap = {
     curl: {
       create: `curl -X POST ${runsEndpoint} \\

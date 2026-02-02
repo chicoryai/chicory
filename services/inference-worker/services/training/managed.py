@@ -774,23 +774,52 @@ class TrainingJobManager:
                 raise Exception("No S3 URL found in completed project documentation")
             
             # Parse S3 URL to extract bucket and key
-            # Expected format: https://bucket-name.s3.region.amazonaws.com/key/path
-            import re
-            s3_url_pattern = r'https://([^.]+)\.s3\.([^.]+)\.amazonaws\.com/(.+)'
-            match = re.match(s3_url_pattern, s3_url)
-            
-            if not match:
+            from urllib.parse import urlparse
+            s3_bucket = None
+            s3_key = None
+            s3_region = None
+
+            if s3_url.startswith("s3://"):
+                s3_parts = s3_url[5:].split("/", 1)
+                if len(s3_parts) != 2 or not s3_parts[0] or not s3_parts[1]:
+                    raise Exception(f"Invalid S3 URL format: {s3_url}")
+                s3_bucket, s3_key = s3_parts
+            elif s3_url.startswith("https://"):
+                parsed = urlparse(s3_url)
+                host = parsed.hostname or ""
+                path = parsed.path.lstrip("/")
+
+                if ".s3." in host and host.endswith(".amazonaws.com"):
+                    # Virtual-hosted-style: bucket.s3.region.amazonaws.com
+                    s3_bucket = host.split(".s3.")[0]
+                    s3_region = host.split(".s3.")[1].split(".amazonaws.com")[0]
+                    s3_key = path
+                elif host.startswith("s3.") and host.endswith(".amazonaws.com"):
+                    # Path-style: s3.region.amazonaws.com/bucket/key
+                    s3_region = host.split("s3.")[1].split(".amazonaws.com")[0]
+                    if "/" not in path:
+                        raise Exception(f"Invalid S3 URL format: {s3_url}")
+                    s3_bucket, s3_key = path.split("/", 1)
+                elif path and "/" in path:
+                    # Non-AWS endpoint (e.g., MinIO) using path-style URLs
+                    s3_bucket, s3_key = path.split("/", 1)
+                else:
+                    raise Exception(f"Invalid S3 URL format: {s3_url}")
+            else:
                 raise Exception(f"Invalid S3 URL format: {s3_url}")
-            
-            s3_bucket = match.group(1)
-            s3_region = match.group(2)
-            s3_key = match.group(3)
+
+            if not s3_region:
+                s3_region = os.getenv("AWS_REGION") or os.getenv("S3_REGION") or "us-east-1"
             
             logger.info(f"Downloading from S3: s3://{s3_bucket}/{s3_key}")
             
             # Initialize S3 client using default credential chain (IAM roles, env vars, etc.)
             # This will automatically use IAM role credentials when running in AWS
-            s3_client = boto3.client('s3', region_name=s3_region)
+            endpoint_url = os.getenv("S3_ENDPOINT_URL")
+            client_kwargs = {"region_name": s3_region}
+            if endpoint_url:
+                client_kwargs["endpoint_url"] = endpoint_url
+            s3_client = boto3.client('s3', **client_kwargs)
             
             # Download the file content from S3
             try:

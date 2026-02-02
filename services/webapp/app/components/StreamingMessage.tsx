@@ -407,7 +407,8 @@ export function StreamingMessage({
   };
 
   // Determine what content to display
-  const displayContent = finalResponse || currentSection || streamingContent;
+  const hasStreamingContent = streamingContent.trim().length > 0;
+  const displayContent = finalResponse || (hasStreamingContent ? streamingContent : currentSection);
   const displayTools = finalResponse ? [] : sectionTools; // No tools if showing final response
 
   return (

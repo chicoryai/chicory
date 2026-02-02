@@ -4,8 +4,13 @@ import { Form, useSubmit } from "@remix-run/react";
 import GatewaySelector from "~/components/agents/GatewaySelector";
 import type { MCPGateway } from "~/services/chicory.server";
 
-// API endpoints configuration
-const API_BASE_URL = "https://app.chicory.ai/api/v1";
+// API endpoints configuration - dynamically determine base URL
+const getApiBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}/api/v1`;
+  }
+  return "https://app.chicory.ai/api/v1";
+};
 
 interface DeployedApiTabProps {
   isDeployed: boolean;
@@ -98,7 +103,7 @@ export default function DeployedApiTab({
   const handleCopyCodeSnippet = () => {
     // Extract agent ID from the endpoint URL
     const agentId = apiEndpoint.split('/').pop() || '';
-    const runsEndpoint = `${API_BASE_URL}/projects/${projectId}/runs`;
+    const runsEndpoint = `${getApiBaseUrl()}/projects/${projectId}/runs`;
     const currentTime = new Date().toISOString();
 
     let codeSnippet = '';
@@ -227,9 +232,9 @@ export default function DeployedApiTab({
               <div className="p-4 overflow-x-auto">
                 {activeEndpoint === 'create' ? (
                   <pre className="text-xs text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
-{`curl -X POST https://app.chicory.ai/api/v1/projects/${projectId}/runs \
--H "Content-Type: application/json" \
--H "Authorization: Bearer ${getApiKeyDisplay()}" \
+{`curl -X POST ${getApiBaseUrl()}/projects/${projectId}/runs \\
+-H "Content-Type: application/json" \\
+-H "Authorization: Bearer ${getApiKeyDisplay()}" \\
 -d '{
   "agent_name": "${apiEndpoint.split('/').pop()}",
   "input": [
@@ -247,7 +252,7 @@ export default function DeployedApiTab({
                   </pre>
                 ) : (
                   <pre className="text-xs text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
-{`curl -X GET https://app.chicory.ai/api/v1/projects/${projectId}/runs/YOUR_RUN_ID \
+{`curl -X GET ${getApiBaseUrl()}/projects/${projectId}/runs/YOUR_RUN_ID \\
 -H "Authorization: Bearer ${getApiKeyDisplay()}"`}
                   </pre>
                 )}
